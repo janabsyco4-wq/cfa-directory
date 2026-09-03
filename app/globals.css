@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8faf8;
+  --foreground: #0f1f0f;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #f0f4f0; }
+::-webkit-scrollbar-thumb { background: #86efac; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #4ade80; }
+
+/* Hero gradient utility */
+.hero-gradient {
+  background: linear-gradient(135deg, #166534 0%, #15803d 40%, #16a34a 70%, #22c55e 100%);
+}
+
+/* Glass card */
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Shimmer animation for skeleton */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #f0f4f0 25%, #e2f0e2 50%, #f0f4f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Subtle dot pattern */
+.dot-pattern {
+  background-image: radial-gradient(circle, #ffffff22 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Gold accent */
+.text-gold { color: #f59e0b; }
+.bg-gold   { background-color: #f59e0b; }
+
+/* Hide scrollbar but allow scrolling (for filter chips) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

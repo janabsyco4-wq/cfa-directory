@@ -1,0 +1,290 @@
+/**
+ * Seed script — populates the database with sample CFA members.
+ * Run with:  npx tsx scripts/seed.ts
+ */
+
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import path from "path";
+
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+
+const MONGODB_URI = process.env.MONGODB_URI as string;
+if (!MONGODB_URI) throw new Error("MONGODB_URI not set in .env.local");
+
+// ── inline schema (avoids transpile issues when running directly) ─────────────
+const MemberSchema = new mongoose.Schema({
+  membershipNo:        { type: String, required: true, unique: true },
+  firstName:           { type: String, required: true },
+  lastName:            { type: String, required: true },
+  fatherName:          { type: String, default: "" },
+  cnic:                { type: String, required: true, unique: true },
+  phone:               { type: String, default: "" },
+  email:               { type: String, default: "" },
+  ntn:                 { type: String, default: "" },
+  address:             { type: String, default: "" },
+  district:            { type: String, default: "" },
+  businessName:        { type: String, default: "" },
+  businessType:        { type: String, default: "" },
+  membershipCategory:  { type: String, required: true },
+  fee:                 { type: Number, default: 0 },
+  status:              { type: String, default: "Active" },
+  joinedDate:          { type: Date,   default: Date.now },
+  photo:               { type: String, default: "" },
+});
+
+const Member =
+  mongoose.models.Member ?? mongoose.model("Member", MemberSchema);
+
+// ── seed data ─────────────────────────────────────────────────────────────────
+const members = [
+  {
+    membershipNo: "CFA-2024-001",
+    firstName: "Ahmed",
+    lastName: "Khan",
+    fatherName: "Rashid Khan",
+    cnic: "42101-1234567-1",
+    phone: "+92 300 1234567",
+    email: "ahmed.khan@agrofarm.pk",
+    ntn: "1234567-8",
+    address: "Plot 45, SITE Area, Karachi",
+    district: "Karachi",
+    businessName: "AgroFarm Pakistan Pvt Ltd",
+    businessType: "Agricultural Farming",
+    membershipCategory: "Corporate",
+    fee: 30000,
+    status: "Active",
+    joinedDate: new Date("2024-01-15"),
+    photo: "https://i.pravatar.cc/300?img=11",
+  },
+  {
+    membershipNo: "CFA-2024-002",
+    firstName: "Sara",
+    lastName: "Malik",
+    fatherName: "Tariq Malik",
+    cnic: "35202-9876543-2",
+    phone: "+92 321 9876543",
+    email: "sara.malik@greenfuture.pk",
+    ntn: "9876543-2",
+    address: "House 12, Model Town, Lahore",
+    district: "Lahore",
+    businessName: "Green Future Organics",
+    businessType: "Organic Food Processing",
+    membershipCategory: "Women",
+    fee: 3000,
+    status: "Active",
+    joinedDate: new Date("2024-02-20"),
+    photo: "https://i.pravatar.cc/300?img=47",
+  },
+  {
+    membershipNo: "CFA-2024-003",
+    firstName: "Muhammad",
+    lastName: "Farooq",
+    fatherName: "Abdul Farooq",
+    cnic: "61101-5554433-3",
+    phone: "+92 333 5554433",
+    email: "m.farooq@seedtech.pk",
+    ntn: "5554433-9",
+    address: "Grain Market, Multan Road, Faisalabad",
+    district: "Faisalabad",
+    businessName: "SeedTech Solutions",
+    businessType: "Seed Distribution",
+    membershipCategory: "Executive",
+    fee: 5000,
+    status: "Active",
+    joinedDate: new Date("2024-03-10"),
+    photo: "https://i.pravatar.cc/300?img=15",
+  },
+  {
+    membershipNo: "CFA-2024-004",
+    firstName: "Zainab",
+    lastName: "Hussain",
+    fatherName: "Ghulam Hussain",
+    cnic: "38403-7778899-4",
+    phone: "+92 345 7778899",
+    email: "zainab.h@freshproduce.pk",
+    ntn: "",
+    address: "Village Chak 40, Multan",
+    district: "Multan",
+    businessName: "Fresh Produce Co.",
+    businessType: "Fruits & Vegetables",
+    membershipCategory: "Associate",
+    fee: 2000,
+    status: "Active",
+    joinedDate: new Date("2024-04-05"),
+    photo: "https://i.pravatar.cc/300?img=45",
+  },
+  {
+    membershipNo: "CFA-2024-005",
+    firstName: "Bilal",
+    lastName: "Chaudhry",
+    fatherName: "Arshad Chaudhry",
+    cnic: "34101-2223334-5",
+    phone: "+1 416 555 0199",
+    email: "bilal.chaudhry@canagro.ca",
+    ntn: "",
+    address: "123 Maple Ave, Toronto, ON, Canada",
+    district: "Overseas",
+    businessName: "CanAgro Exports Inc.",
+    businessType: "Agricultural Export",
+    membershipCategory: "Overseas",
+    fee: 100,
+    status: "Active",
+    joinedDate: new Date("2024-05-18"),
+    photo: "https://i.pravatar.cc/300?img=12",
+  },
+  {
+    membershipNo: "CFA-2024-006",
+    firstName: "Ali",
+    lastName: "Raza",
+    fatherName: "Noor Raza",
+    cnic: "42201-3334445-6",
+    phone: "+92 311 3334445",
+    email: "ali.raza@agristu.edu.pk",
+    ntn: "",
+    address: "University of Agriculture, Faisalabad",
+    district: "Faisalabad",
+    businessName: "N/A",
+    businessType: "Student",
+    membershipCategory: "Student",
+    fee: 0,
+    status: "Active",
+    joinedDate: new Date("2024-06-01"),
+    photo: "https://i.pravatar.cc/300?img=13",
+  },
+  {
+    membershipNo: "CFA-2024-007",
+    firstName: "Dr. Nadia",
+    lastName: "Siddiqui",
+    fatherName: "Iqbal Siddiqui",
+    cnic: "42301-6667778-7",
+    phone: "+92 300 6667778",
+    email: "dr.nadia@minfa.gov.pk",
+    ntn: "",
+    address: "Ministry of National Food Security, Islamabad",
+    district: "Islamabad",
+    businessName: "Ministry of National Food Security",
+    businessType: "Government / Policy",
+    membershipCategory: "Honorary Member",
+    fee: 0,
+    status: "Active",
+    joinedDate: new Date("2024-01-01"),
+    photo: "https://i.pravatar.cc/300?img=44",
+  },
+  {
+    membershipNo: "CFA-2024-008",
+    firstName: "Kamran",
+    lastName: "Butt",
+    fatherName: "Saeed Butt",
+    cnic: "35301-4445556-8",
+    phone: "+92 323 4445556",
+    email: "kamran@buttfarms.pk",
+    ntn: "4445556-3",
+    address: "Ravi Road, Lahore",
+    district: "Lahore",
+    businessName: "Butt Farms & Dairy",
+    businessType: "Dairy & Livestock",
+    membershipCategory: "Corporate",
+    fee: 30000,
+    status: "Active",
+    joinedDate: new Date("2024-07-22"),
+    photo: "https://i.pravatar.cc/300?img=17",
+  },
+  {
+    membershipNo: "CFA-2024-009",
+    firstName: "Fatima",
+    lastName: "Zahra",
+    fatherName: "Haider Zahra",
+    cnic: "42401-8889990-9",
+    phone: "+92 312 8889990",
+    email: "fatima.z@spiceworld.pk",
+    ntn: "8889990-1",
+    address: "Spice Market, Old City, Hyderabad",
+    district: "Hyderabad",
+    businessName: "Spice World Exports",
+    businessType: "Spice & Herb Trade",
+    membershipCategory: "Women",
+    fee: 3000,
+    status: "Active",
+    joinedDate: new Date("2024-08-14"),
+    photo: "https://i.pravatar.cc/300?img=48",
+  },
+  {
+    membershipNo: "CFA-2024-010",
+    firstName: "Usman",
+    lastName: "Ghani",
+    fatherName: "Abdul Ghani",
+    cnic: "54400-1112223-0",
+    phone: "+92 342 1112223",
+    email: "usman@peshawarfoods.pk",
+    ntn: "1112223-7",
+    address: "Ring Road Industrial Area, Peshawar",
+    district: "Peshawar",
+    businessName: "Peshawar Foods Ltd",
+    businessType: "Food Processing",
+    membershipCategory: "Executive",
+    fee: 5000,
+    status: "Active",
+    joinedDate: new Date("2024-09-03"),
+    photo: "https://i.pravatar.cc/300?img=18",
+  },
+  {
+    membershipNo: "CFA-2024-011",
+    firstName: "Hina",
+    lastName: "Nawaz",
+    fatherName: "Nawaz Ahmad",
+    cnic: "35404-2223334-1",
+    phone: "+92 301 2223334",
+    email: "hina.nawaz@ruralcraft.pk",
+    ntn: "",
+    address: "Gujranwala Road, Sialkot",
+    district: "Sialkot",
+    businessName: "Rural Craft Foods",
+    businessType: "Cottage Industry",
+    membershipCategory: "Associate",
+    fee: 2000,
+    status: "Inactive",
+    joinedDate: new Date("2023-11-20"),
+    photo: "https://i.pravatar.cc/300?img=49",
+  },
+  {
+    membershipNo: "CFA-2024-012",
+    firstName: "Imran",
+    lastName: "Sheikh",
+    fatherName: "Rafiq Sheikh",
+    cnic: "42501-3334445-2",
+    phone: "+44 20 7946 0321",
+    email: "imran.sheikh@pakagro.co.uk",
+    ntn: "",
+    address: "22 Baker Street, London, UK",
+    district: "Overseas",
+    businessName: "PakAgro UK Ltd",
+    businessType: "Import / Export",
+    membershipCategory: "Overseas",
+    fee: 100,
+    status: "Active",
+    joinedDate: new Date("2024-10-11"),
+    photo: "https://i.pravatar.cc/300?img=19",
+  },
+];
+
+async function seed() {
+  console.log("🌱  Connecting to MongoDB...");
+  await mongoose.connect(MONGODB_URI);
+  console.log("✅  Connected.");
+
+  console.log("🗑️   Clearing existing members...");
+  await Member.deleteMany({});
+
+  console.log("📥  Inserting seed data...");
+  await Member.insertMany(members);
+
+  console.log(`✅  Seeded ${members.length} members successfully.`);
+  await mongoose.disconnect();
+  process.exit(0);
+}
+
+seed().catch((err) => {
+  console.error("❌  Seed failed:", err);
+  process.exit(1);
+});
