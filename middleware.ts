@@ -9,19 +9,23 @@ const sessionOptions = {
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     sameSite: "lax" as const,
+    maxAge: 60 * 60 * 24 * 7, // 7 days
   },
 };
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Protect admin routes (except login)
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
-    const res     = NextResponse.next();
+    const res = NextResponse.next();
     const session = await getIronSession<SessionData>(req, res, sessionOptions);
 
     if (!session.isLoggedIn) {
       return NextResponse.redirect(new URL("/admin/login", req.url));
     }
+    
+    return res;
   }
 
   return NextResponse.next();

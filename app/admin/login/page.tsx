@@ -24,12 +24,16 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ username, password }),
       });
       const json = await res.json();
-      if (!res.ok) { setError(json.error ?? "Login failed."); return; }
-      router.refresh();
-      router.push("/admin");
+      if (!res.ok) { 
+        setError(json.error ?? "Login failed."); 
+        setLoading(false);
+        return; 
+      }
+      
+      // Success - redirect to admin dashboard
+      window.location.href = "/admin/dashboard";
     } catch {
       setError("Something went wrong. Please try again.");
-    } finally {
       setLoading(false);
     }
   }
