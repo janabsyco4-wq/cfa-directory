@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Search, X, Users, ChevronLeft, ChevronRight, SlidersHorizontal, MapPin } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Search, X, Users, ChevronLeft, ChevronRight, SlidersHorizontal, MapPin, Loader2 } from "lucide-react";
 import MemberCard from "@/components/MemberCard";
 import { MembershipCategory } from "@/models/Member";
 
@@ -35,20 +35,31 @@ export default function MembersPage() {
   const [district, setDistrict]               = useState("All");
   const [districts, setDistricts]             = useState<string[]>([]);
   const [page, setPage]                       = useState(1);
-  const [data, setData]                       = useState<ApiResponse | null>(null);
+  const [allMembers, setAllMembers]           = useState<Member[]>([]);
+  const [displayedMembers, setDisplayedMembers] = useState<Member[]>([]);
+  const [total, setTotal]                     = useState(0);
+  const [totalPages, setTotalPages]           = useState(0);
   const [loading, setLoading]                 = useState(true);
+  const [loadingMore, setLoadingMore]         = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filtersOpen, setFiltersOpen]         = useState(false);
+  const displayBatch = useRef(0);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 350);
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { setPage(1); }, [debouncedSearch, category, district]);
+  useEffect(() => { 
+    setPage(1); 
+    setDisplayBatch.current = 0;
+    setDisplayedMembers([]);
+  }, [debouncedSearch, category, district]);
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
+    setDisplayBatch.current = 0;
+    setDisplayedMembers([]);
     try {
       const params = new URLSearchParams({
         page:     String(page),
@@ -60,26 +71,50 @@ export default function MembersPage() {
       const res  = await fetch(`/api/members?${params}`);
       const json = await res.json();
       if (res.ok && json.members) {
-        setData(json as ApiResponse);
+        setAllMembers(json.members);
+        setTotal(json.total);
+        setTotalPages(json.totalPages);
         // Update districts list from first load (no filters)
         if (json.districts && json.districts.length > 0) {
           setDistricts(json.districts);
         }
+        // Start progressive loading - first 5
+        setDisplayedMembers(json.members.slice(0, 5));
+        displayBatch.current = 1;
       } else {
-        setData({ members: [], total: 0, page: 1, totalPages: 0 });
+        setAllMembers([]);
+        setDisplayedMembers([]);
+        setTotal(0);
+        setTotalPages(0);
       }
     } catch {
-      setData({ members: [], total: 0, page: 1, totalPages: 0 });
+      setAllMembers([]);
+      setDisplayedMembers([]);
+      setTotal(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
   }, [page, debouncedSearch, category, district]);
 
+  // Progressive loading effect - load 5 more every 200ms
+  useEffect(() => {
+    if (displayBatch.current > 0 && displayBatch.current < 4 && allMembers.length > displayedMembers.length) {
+      const timer = setTimeout(() => {
+        const nextBatch = displayBatch.current + 1;
+        setDisplayedMembers(allMembers.slice(0, nextBatch * 5));
+        displayBatch.current = nextBatch;
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [displayedMembers, allMembers]);
+
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
-  const start = data ? (data.page - 1) * 20 + 1 : 0;
-  const end   = data ? Math.min(data.page * 20, data.total) : 0;
+  const start = total > 0 ? (page - 1) * 20 + 1 : 0;
+  const end   = total > 0 ? Math.min(page * 20, total) : 0;
   const hasFilters = category !== "All" || district !== "All" || search !== "";
+  const isProgressiveLoading = displayedMembers.length < allMembers.length;
 
   function clearFilters() {
     setSearch("");
@@ -107,10 +142,10 @@ export default function MembersPage() {
                 All active members of the Chamber of Food and Agriculture Pakistan
               </p>
             </div>
-            {data && !loading && data.total > 0 && (
+            {total > 0 && !loading && (
               <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 sm:px-4 py-2 self-start sm:self-auto">
                 <Users size={13} className="text-green-600 flex-shrink-0" />
-                <span className="text-green-700 font-bold text-sm">{data.total}</span>
+                <span className="text-green-700 font-bold text-sm">{total}</span>
                 <span className="text-green-600 text-xs sm:text-sm">active members</span>
               </div>
             )}
@@ -231,19 +266,19 @@ export default function MembersPage() {
         </div>
 
         {/* ── Results count ─────────────────────────────────────────────── */}
-        {data && !loading && data.total > 0 && (
+        {total > 0 && !loading && (
           <p className="text-gray-400 text-xs mb-4 font-medium">
             Showing{" "}
             <span className="text-gray-700">{start}–{end}</span>{" "}
             of{" "}
-            <span className="text-gray-700">{data.total}</span> members
+            <span className="text-gray-700">{total}</span> members
           </p>
         )}
 
         {/* ── Grid ─────────────────────────────────────────────────────── */}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-            {Array.from({ length: 20 }).map((_, i) => (
+            {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                 <div className="aspect-square bg-gray-100 animate-pulse" />
                 <div className="p-3 space-y-2">
@@ -253,21 +288,31 @@ export default function MembersPage() {
               </div>
             ))}
           </div>
-        ) : data && data.members.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-            {data.members.map((m) => (
-              <MemberCard
-                key={m._id}
-                membershipNo={m.membershipNo}
-                firstName={m.firstName}
-                lastName={m.lastName}
-                membershipCategory={m.membershipCategory}
-                photo={m.photo}
-                businessName={m.businessName}
-                district={m.district}
-              />
-            ))}
-          </div>
+        ) : displayedMembers.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+              {displayedMembers.map((m) => (
+                <MemberCard
+                  key={m._id}
+                  membershipNo={m.membershipNo}
+                  firstName={m.firstName}
+                  lastName={m.lastName}
+                  membershipCategory={m.membershipCategory}
+                  photo={m.photo}
+                  businessName={m.businessName}
+                  district={m.district}
+                />
+              ))}
+            </div>
+            
+            {/* Progressive loading indicator */}
+            {isProgressiveLoading && (
+              <div className="flex items-center justify-center gap-2 mt-6 text-gray-400">
+                <Loader2 size={16} className="animate-spin" />
+                <span className="text-xs">Loading more members...</span>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-16 sm:py-24">
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
@@ -284,7 +329,7 @@ export default function MembersPage() {
         )}
 
         {/* ── Pagination ───────────────────────────────────────────────── */}
-        {data && data.totalPages > 1 && (
+        {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 mt-10 sm:mt-12">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -297,11 +342,11 @@ export default function MembersPage() {
             <span className="px-3 sm:px-4 py-2 text-sm text-gray-600">
               <strong className="text-gray-900">{page}</strong>
               <span className="text-gray-400"> / </span>
-              {data.totalPages}
+              {totalPages}
             </span>
             <button
-              onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
-              disabled={page === data.totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
               className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-green-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
               <span className="hidden sm:inline">Next</span>
