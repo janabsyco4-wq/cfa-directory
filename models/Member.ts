@@ -37,7 +37,7 @@ const MemberSchema = new Schema<IMember>(
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     fatherName: { type: String, default: "" },
-    cnic: { type: String, required: true, unique: true, index: true },
+    cnic: { type: String, default: "" },
     phone: { type: String, default: "" },
     email: { type: String, default: "" },
     ntn: { type: String, default: "" },
