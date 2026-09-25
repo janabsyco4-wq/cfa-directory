@@ -37,6 +37,18 @@ async function getLiveStats() {
   }
 }
 
+export const metadata = {
+  title: "Home — Empowering Farmers, Feeding the Future",
+  description: "CFA Pakistan unites farmers, agribusinesses, industry experts, and stakeholders to promote sustainable agriculture, food security, and market development across Pakistan.",
+  openGraph: {
+    title: "CFA Pakistan — Empowering Farmers, Feeding the Future",
+    description: "Chamber of Food and Agriculture Pakistan unites farmers, agribusinesses, exporters, and policymakers to build a prosperous agricultural future.",
+    images: ["/logo.avif"],
+  },
+};
+
+export const revalidate = 300; // Revalidate every 5 minutes
+
 export default async function HomePage() {
   const live = await getLiveStats();
 
@@ -46,8 +58,32 @@ export default async function HomePage() {
     { value: "7",      label: "Membership Tiers",   sub: "for every stakeholder" },
     { value: "2024",   label: "Year Founded",       sub: "a new chapter begins"  },
   ];
+
+  // Structured data for SEO
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Chamber of Food and Agriculture Pakistan",
+    alternateName: "CFA Pakistan",
+    url: "https://cfa-directory.vercel.app",
+    logo: "https://cfa-directory.vercel.app/logo.avif",
+    description: "Pakistan's Chamber of Food and Agriculture unites farmers, agribusinesses, exporters, and policymakers to build a prosperous agricultural future.",
+    email: "chamberoffoodandagriculturepk@gmail.com",
+    telephone: "+92 342 2500004",
+    foundingDate: "2024",
+    address: {
+      "@type": "PostalAddress",
+      addressCountry: "PK",
+    },
+    sameAs: [],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="relative hero-gradient overflow-hidden flex items-center">
         <div className="absolute inset-0 dot-pattern opacity-20" />
@@ -110,7 +146,15 @@ export default async function HomePage() {
                 <div className="bg-white rounded-3xl p-6 shadow-2xl shadow-black/30">
                   <div className="flex items-center gap-3 mb-5">
                     <div className="w-12 h-12 rounded-2xl overflow-hidden ring-2 ring-green-100 flex-shrink-0">
-                      <Image src="/logo.avif" alt="CFA" width={48} height={48} className="object-contain" />
+                      <Image 
+                        src="/logo.avif" 
+                        alt="CFA Pakistan Logo" 
+                        width={48} 
+                        height={48} 
+                        className="object-contain"
+                        priority
+                        quality={90}
+                      />
                     </div>
                     <div>
                       <p className="text-gray-900 font-bold text-sm">CFA Pakistan</p>
@@ -129,7 +173,14 @@ export default async function HomePage() {
                     <div className="flex -space-x-2">
                       {[11, 47, 15, 45, 12].map((n) => (
                         <div key={n} className="w-7 h-7 rounded-full overflow-hidden ring-2 ring-white flex-shrink-0">
-                          <Image src={`https://i.pravatar.cc/28?img=${n}`} alt="" width={28} height={28} />
+                          <Image 
+                            src={`https://i.pravatar.cc/28?img=${n}`} 
+                            alt="Member avatar" 
+                            width={28} 
+                            height={28}
+                            loading="lazy"
+                            quality={75}
+                          />
                         </div>
                       ))}
                     </div>

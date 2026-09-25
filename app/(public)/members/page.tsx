@@ -52,7 +52,7 @@ export default function MembersPage() {
     try {
       const params = new URLSearchParams({
         page:     String(page),
-        limit:    "12",
+        limit:    "20",
         search:   debouncedSearch,
         category: category === "All" ? "" : category,
         district: district === "All" ? "" : district,
@@ -77,8 +77,8 @@ export default function MembersPage() {
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
-  const start = data ? (data.page - 1) * 12 + 1 : 0;
-  const end   = data ? Math.min(data.page * 12, data.total) : 0;
+  const start = data ? (data.page - 1) * 20 + 1 : 0;
+  const end   = data ? Math.min(data.page * 20, data.total) : 0;
   const hasFilters = category !== "All" || district !== "All" || search !== "";
 
   function clearFilters() {
@@ -242,13 +242,19 @@ export default function MembersPage() {
 
         {/* ── Grid ─────────────────────────────────────────────────────── */}
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl h-44 sm:h-52 animate-pulse" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+            {Array.from({ length: 20 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="aspect-square bg-gray-100 animate-pulse" />
+                <div className="p-3 space-y-2">
+                  <div className="h-3 bg-gray-100 rounded animate-pulse" />
+                  <div className="h-2 bg-gray-100 rounded w-3/4 animate-pulse" />
+                </div>
+              </div>
             ))}
           </div>
         ) : data && data.members.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {data.members.map((m) => (
               <MemberCard
                 key={m._id}

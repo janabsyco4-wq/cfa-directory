@@ -3,6 +3,9 @@ import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
 import { DEMO_MEMBERS } from "@/lib/demoMembers";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 60; // Revalidate every 60 seconds
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const search   = (searchParams.get("search")   ?? "").trim();
@@ -38,7 +41,14 @@ export async function GET(req: NextRequest) {
       Member.distinct("district", { status: "Active", district: { $nin: [null, ""] } }),
     ]);
 
-    return NextResponse.json({ members, total, page, totalPages: Math.ceil(total / limit), districts: districts.sort() });
+    return NextResponse.json(
+      { members, total, page, totalPages: Math.ceil(total / limit), districts: districts.sort() },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        },
+      }
+    );
 
   } catch {
     // ── MongoDB unavailable — serve demo data ──────────────────────────────
