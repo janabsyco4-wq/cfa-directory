@@ -6,6 +6,11 @@ import { DEMO_MEMBERS } from "@/lib/demoMembers";
 export const dynamic = 'force-dynamic';
 export const revalidate = 60; // Revalidate every 60 seconds
 
+// Cache districts in memory to avoid repeated DB calls
+let cachedDistricts: string[] | null = null;
+let districtsCacheTime = 0;
+const DISTRICTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const search   = (searchParams.get("search")   ?? "").trim();
@@ -20,7 +25,7 @@ export async function GET(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = { status: "Active" };
     if (category && category !== "All") query.membershipCategory = category;
-    if (district) query.district = { $regex: `^${district}$`, $options: "i" };
+    if (district) query.district = district; // Exact match instead of regex for performance
     if (search) {
       query.$or = [
         { firstName:    { $regex: search, $options: "i" } },
@@ -29,23 +34,30 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    // Run count + find + districts in parallel
-    const [total, members, districts] = await Promise.all([
+    // Get cached districts or fetch if expired
+    const now = Date.now();
+    if (!cachedDistricts || (now - districtsCacheTime) > DISTRICTS_CACHE_TTL) {
+      cachedDistricts = await Member.distinct("district", { status: "Active", district: { $nin: [null, ""] } });
+      cachedDistricts.sort();
+      districtsCacheTime = now;
+    }
+
+    // Run only count + find in parallel (districts are cached)
+    const [total, members] = await Promise.all([
       Member.countDocuments(query),
       Member.find(query)
-        .select("membershipNo firstName lastName membershipCategory photo businessName district joinedDate")
+        .select("membershipNo firstName lastName membershipCategory photo businessName district")
         .sort({ joinedDate: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .lean(),
-      Member.distinct("district", { status: "Active", district: { $nin: [null, ""] } }),
     ]);
 
     return NextResponse.json(
-      { members, total, page, totalPages: Math.ceil(total / limit), districts: districts.sort() },
+      { members, total, page, totalPages: Math.ceil(total / limit), districts: cachedDistricts },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
         },
       }
     );
