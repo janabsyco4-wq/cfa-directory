@@ -52,13 +52,13 @@ export default function MembersPage() {
 
   useEffect(() => { 
     setPage(1); 
-    setDisplayBatch.current = 0;
+    displayBatch.current = 0;
     setDisplayedMembers([]);
   }, [debouncedSearch, category, district]);
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
-    setDisplayBatch.current = 0;
+    displayBatch.current = 0;
     setDisplayedMembers([]);
     try {
       const params = new URLSearchParams({
