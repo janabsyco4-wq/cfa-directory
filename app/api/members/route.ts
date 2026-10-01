@@ -4,7 +4,6 @@ import Member from "@/models/Member";
 import { DEMO_MEMBERS } from "@/lib/demoMembers";
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 60; // Revalidate every 60 seconds
 
 // Cache districts in memory to avoid repeated DB calls
 let cachedDistricts: string[] | null = null;
