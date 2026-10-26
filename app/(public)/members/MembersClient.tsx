@@ -1,372 +1,433 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { Search, X, Users, ChevronLeft, ChevronRight, SlidersHorizontal, MapPin, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Search, X, ChevronLeft, ChevronRight, Users, AlertTriangle, RotateCw, SlidersHorizontal } from "lucide-react";
 import MemberCard from "@/components/MemberCard";
-import { MembershipCategory } from "@/models/Member";
+import MemberCardSkeleton from "@/components/MemberCardSkeleton";
+import {
+  CATEGORIES, PAGE_SIZE, SORT_OPTIONS,
+  type DirectoryPage, type SortKey,
+} from "@/lib/directory";
 
-const CATEGORIES: ("All" | MembershipCategory)[] = [
-  "All", "Corporate", "Executive", "Associate",
-  "Overseas", "Women", "Student", "Honorary Member",
-];
-
-export interface Member {
-  _id: string;
-  membershipNo: string;
-  firstName: string;
-  lastName: string;
-  membershipCategory: MembershipCategory;
-  photo?: string;
-  businessName?: string;
-  district?: string;
-}
-
-export interface InitialData {
-  members: Member[];
-  total: number;
+export interface DirectoryParams {
+  search: string;
+  category: string;
+  district: string;
+  sort: SortKey;
   page: number;
-  totalPages: number;
-  districts: string[];
 }
 
-export default function MembersClient({ initialData }: { initialData?: InitialData | null }) {
-  const [search, setSearch]                   = useState("");
-  const [category, setCategory]               = useState<"All" | MembershipCategory>("All");
-  const [district, setDistrict]               = useState("All");
-  const [districts, setDistricts]             = useState<string[]>(initialData?.districts ?? []);
-  const [page, setPage]                       = useState(1);
-  const [allMembers, setAllMembers]           = useState<Member[]>(initialData?.members ?? []);
-  const [displayedMembers, setDisplayedMembers] = useState<Member[]>(initialData ? initialData.members.slice(0, 5) : []);
-  const [total, setTotal]                     = useState(initialData?.total ?? 0);
-  const [totalPages, setTotalPages]           = useState(initialData?.totalPages ?? 0);
-  const [loading, setLoading]                 = useState(!initialData);
-  const [loadingMore, setLoadingMore]         = useState(false);
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filtersOpen, setFiltersOpen]         = useState(false);
-  const displayBatch = useRef(initialData ? 1 : 0);
-  const skipInitialFetch = useRef(!!initialData);
-  const skipInitialReset = useRef(!!initialData);
+export const DEFAULT_PARAMS: DirectoryParams = { search: "", category: "", district: "", sort: "newest", page: 1 };
+
+export function parseParams(get: (key: string) => string | null): DirectoryParams {
+  const sort = get("sort");
+  return {
+    search:   (get("search") ?? "").slice(0, 100),
+    category: CATEGORIES.includes(get("category") as never) ? (get("category") as string) : "",
+    district: get("district") ?? "",
+    sort:     SORT_OPTIONS.some((o) => o.value === sort) ? (sort as SortKey) : "newest",
+    page:     Math.max(1, parseInt(get("page") ?? "1") || 1),
+  };
+}
+
+function toQuery(p: DirectoryParams) {
+  const q = new URLSearchParams();
+  if (p.search)   q.set("search", p.search);
+  if (p.category) q.set("category", p.category);
+  if (p.district) q.set("district", p.district);
+  if (p.sort !== "newest") q.set("sort", p.sort);
+  if (p.page > 1) q.set("page", String(p.page));
+  return q.toString();
+}
+
+function isDefault(p: DirectoryParams) {
+  return toQuery(p) === "";
+}
+
+function pageWindow(page: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const set = new Set([1, total, page - 1, page, page + 1].filter((n) => n >= 1 && n <= total));
+  const sorted = [...set].sort((a, b) => a - b);
+  const out: (number | "…")[] = [];
+  sorted.forEach((n, i) => {
+    if (i > 0 && n - sorted[i - 1] > 1) out.push("…");
+    out.push(n);
+  });
+  return out;
+}
+
+// 16px text on mobile stops iOS Safari from zooming into focused fields
+const fieldClass =
+  "w-full h-12 md:h-11 rounded-lg md:rounded-md border border-line bg-white text-base md:text-sm text-ink focus:outline-none focus:border-forest focus:ring-2 focus:ring-forest/15";
+const labelClass = "block text-xs font-semibold text-muted mb-1.5";
+const pageBtnClass =
+  "inline-flex items-center justify-center gap-1 h-11 sm:h-10 px-4 sm:px-3 rounded-lg sm:rounded-md border border-line bg-white text-sm font-medium text-ink hover:border-forest disabled:opacity-40 disabled:pointer-events-none";
+
+export default function MembersClient({
+  initialData,
+  initialParams = DEFAULT_PARAMS,
+}: {
+  initialData: DirectoryPage | null;
+  initialParams?: DirectoryParams;
+}) {
+  const useInitial = !!initialData && isDefault(initialParams);
+
+  const [params, setParams]           = useState<DirectoryParams>(initialParams);
+  const [searchInput, setSearchInput] = useState(initialParams.search);
+  const [data, setData]               = useState<DirectoryPage | null>(useInitial ? initialData : null);
+  const [districts, setDistricts]     = useState<string[]>(initialData?.districts ?? []);
+  const [status, setStatus]           = useState<"ready" | "loading" | "error">(useInitial ? "ready" : "loading");
+  const [reloadKey, setReloadKey]     = useState(0);
+  const [sheetOpen, setSheetOpen]     = useState(false);
+  const skipFetch    = useRef(useInitial);
+  const resultsRef   = useRef<HTMLDivElement>(null);
+  const filtersBtnRef = useRef<HTMLButtonElement>(null);
+  const sheetCloseRef = useRef<HTMLButtonElement>(null);
+
+  const update = (patch: Partial<DirectoryParams>) =>
+    setParams((p) => ({ ...p, page: 1, ...patch }));
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    const value = searchInput.trim();
+    if (value === params.search) return;
+    const t = setTimeout(() => setParams((p) => ({ ...p, search: value, page: 1 })), 350);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [searchInput, params.search]);
 
   useEffect(() => {
-    if (skipInitialReset.current) {
-      skipInitialReset.current = false;
+    const qs = toQuery(params);
+    const next = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    if (next !== window.location.pathname + window.location.search) {
+      window.history.replaceState(window.history.state, "", next);
+    }
+  }, [params]);
+
+  useEffect(() => {
+    if (skipFetch.current) {
+      skipFetch.current = false;
       return;
     }
-    setPage(1); 
-    displayBatch.current = 0;
-    setDisplayedMembers([]);
-  }, [debouncedSearch, category, district]);
-
-  const fetchMembers = useCallback(async () => {
-    setLoading(true);
-    displayBatch.current = 0;
-    setDisplayedMembers([]);
-    try {
-      const params = new URLSearchParams({
-        page:     String(page),
-        limit:    "20",
-        search:   debouncedSearch,
-        category: category === "All" ? "" : category,
-        district: district === "All" ? "" : district,
+    const ctrl = new AbortController();
+    setStatus("loading");
+    const q = new URLSearchParams(toQuery(params));
+    q.set("limit", String(PAGE_SIZE));
+    fetch(`/api/members?${q}`, { signal: ctrl.signal })
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok || !Array.isArray(json.members)) throw new Error(json.error);
+        return json as DirectoryPage;
+      })
+      .then((json) => {
+        setData(json);
+        if (json.districts?.length) setDistricts(json.districts);
+        setStatus("ready");
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") setStatus("error");
       });
-      const res  = await fetch(`/api/members?${params}`);
-      const json = await res.json();
-      if (res.ok && json.members) {
-        setAllMembers(json.members);
-        setTotal(json.total);
-        setTotalPages(json.totalPages);
-        // Update districts list from first load (no filters)
-        if (json.districts && json.districts.length > 0) {
-          setDistricts(json.districts);
-        }
-        // Start progressive loading - first 5
-        setDisplayedMembers(json.members.slice(0, 5));
-        displayBatch.current = 1;
-      } else {
-        setAllMembers([]);
-        setDisplayedMembers([]);
-        setTotal(0);
-        setTotalPages(0);
-      }
-    } catch {
-      setAllMembers([]);
-      setDisplayedMembers([]);
-      setTotal(0);
-      setTotalPages(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, debouncedSearch, category, district]);
-
-  // Progressive loading effect - load 5 more every 200ms
-  useEffect(() => {
-    if (displayBatch.current > 0 && displayBatch.current < 4 && allMembers.length > displayedMembers.length) {
-      const timer = setTimeout(() => {
-        const nextBatch = displayBatch.current + 1;
-        setDisplayedMembers(allMembers.slice(0, nextBatch * 5));
-        displayBatch.current = nextBatch;
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [displayedMembers, allMembers]);
+    return () => ctrl.abort();
+  }, [params, reloadKey]);
 
   useEffect(() => {
-    if (skipInitialFetch.current) {
-      skipInitialFetch.current = false;
-      return;
-    }
-    fetchMembers();
-  }, [fetchMembers]);
+    if (!sheetOpen) return;
+    const filtersBtn = filtersBtnRef.current;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    sheetCloseRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSheetOpen(false);
+    const onResize = () => window.matchMedia("(min-width: 768px)").matches && setSheetOpen(false);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onResize);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onResize);
+      filtersBtn?.focus();
+    };
+  }, [sheetOpen]);
 
-  const start = total > 0 ? (page - 1) * 20 + 1 : 0;
-  const end   = total > 0 ? Math.min(page * 20, total) : 0;
-  const hasFilters = category !== "All" || district !== "All" || search !== "";
-  const isProgressiveLoading = displayedMembers.length < allMembers.length;
-
-  function clearFilters() {
-    setSearch("");
-    setCategory("All");
-    setDistrict("All");
+  function goToPage(page: number) {
+    setParams((p) => ({ ...p, page }));
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
+  function clearAll() {
+    setSearchInput("");
+    setParams((p) => ({ ...DEFAULT_PARAMS, sort: p.sort }));
+  }
 
-      {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-green-600 text-[11px] font-bold tracking-[0.2em] uppercase">CFA Pakistan</span>
-            <span className="text-gray-300">/</span>
-            <span className="text-gray-400 text-[11px] font-medium uppercase tracking-wider">Directory</span>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-            <div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900">
-                Member Directory
-              </h1>
-              <p className="text-gray-500 text-xs sm:text-sm mt-1">
-                All active members of the Chamber of Food and Agriculture Pakistan
-              </p>
-            </div>
-            {total > 0 && !loading && (
-              <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 sm:px-4 py-2 self-start sm:self-auto">
-                <Users size={13} className="text-green-600 flex-shrink-0" />
-                <span className="text-green-700 font-bold text-sm">{total}</span>
-                <span className="text-green-600 text-xs sm:text-sm">active members</span>
-              </div>
-            )}
-          </div>
-        </div>
+  const chips = [
+    params.search   && { key: "search",   label: `“${params.search}”`, clear: () => { setSearchInput(""); update({ search: "" }); } },
+    params.category && { key: "category", label: params.category,       clear: () => update({ category: "" }) },
+    params.district && { key: "district", label: params.district,       clear: () => update({ district: "" }) },
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
+
+  const filterCount = (params.category ? 1 : 0) + (params.district ? 1 : 0) + (params.sort !== "newest" ? 1 : 0);
+
+  const total      = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 0;
+  const start = total ? (params.page - 1) * PAGE_SIZE + 1 : 0;
+  const end   = Math.min(params.page * PAGE_SIZE, total);
+
+  const renderFields = (prefix: string) => (
+    <>
+      <div>
+        <label htmlFor={`${prefix}-category`} className={labelClass}>Category</label>
+        <select
+          id={`${prefix}-category`}
+          value={params.category}
+          onChange={(e) => update({ category: e.target.value })}
+          className={`${fieldClass} px-3`}
+        >
+          <option value="">All categories</option>
+          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
+      <div>
+        <label htmlFor={`${prefix}-district`} className={labelClass}>District</label>
+        <select
+          id={`${prefix}-district`}
+          value={params.district}
+          onChange={(e) => update({ district: e.target.value })}
+          className={`${fieldClass} px-3`}
+        >
+          <option value="">All districts</option>
+          {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+          {params.district && !districts.includes(params.district) && (
+            <option value={params.district}>{params.district}</option>
+          )}
+        </select>
+      </div>
 
-        {/* ── Filters ─────────────────────────────────────────────────────── */}
-        <div className="bg-white border border-gray-100 rounded-2xl mb-6 sm:mb-8 shadow-sm overflow-hidden">
+      <div className="md:col-span-2 lg:col-span-1">
+        <label htmlFor={`${prefix}-sort`} className={labelClass}>Sort by</label>
+        <select
+          id={`${prefix}-sort`}
+          value={params.sort}
+          onChange={(e) => update({ sort: e.target.value as SortKey })}
+          className={`${fieldClass} px-3`}
+        >
+          {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+    </>
+  );
 
-          {/* Search + toggle row — always visible */}
-          <div className="flex gap-2 sm:gap-4 items-center p-3 sm:p-4">
-            <div className="relative flex-1 min-w-0">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+  return (
+    <div className="container-site pb-10 md:py-10">
+      <form
+        role="search"
+        onSubmit={(e) => e.preventDefault()}
+        className="animate-rise sticky top-16 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-canvas border-b border-line
+                   md:static md:mx-0 md:bg-white md:border md:rounded-lg md:p-5 md:grid md:gap-4 md:grid-cols-2
+                   lg:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]"
+      >
+        <div className="flex gap-2 md:contents">
+          <div className="flex-1 min-w-0 md:col-span-2 lg:col-span-1">
+            <label htmlFor="member-search" className={`${labelClass} sr-only md:not-sr-only`}>
+              Search members
+            </label>
+            <div className="relative">
+              <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" aria-hidden />
               <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search name or business..."
-                className="w-full pl-9 pr-8 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400 transition"
+                id="member-search"
+                type="search"
+                enterKeyHint="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Name or organization"
+                maxLength={100}
+                autoComplete="off"
+                className={`${fieldClass} pl-10 md:pl-9 ${searchInput ? "pr-11" : "pr-3"} placeholder:text-muted/70 [&::-webkit-search-cancel-button]:hidden`}
               />
-              {search && (
+              {searchInput && (
                 <button
-                  onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  aria-label="Clear search"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 md:w-8 md:h-8 inline-flex items-center justify-center rounded-md text-muted hover:text-ink hover:bg-canvas"
                 >
-                  <X size={13} />
+                  <X size={16} />
                 </button>
               )}
             </div>
-
-            {/* Filter toggle button */}
-            <button
-              onClick={() => setFiltersOpen((o) => !o)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-lg border text-xs font-semibold transition-all ${
-                filtersOpen || hasFilters
-                  ? "bg-green-600 text-white border-green-600"
-                  : "bg-white text-gray-600 border-gray-200 hover:border-green-300 hover:text-green-700"
-              }`}
-            >
-              <SlidersHorizontal size={13} />
-              <span className="hidden sm:inline">Filters</span>
-              {hasFilters && !filtersOpen && (
-                <span className="w-1.5 h-1.5 rounded-full bg-white inline-block" />
-              )}
-            </button>
-
-            {hasFilters && (
-              <button
-                onClick={clearFilters}
-                className="flex-shrink-0 flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium transition"
-              >
-                <X size={12} /> Clear
-              </button>
-            )}
           </div>
 
-          {/* Collapsible filter panels */}
-          {filtersOpen && (
-            <div className="border-t border-gray-100 px-3 sm:px-4 pb-4 pt-3 space-y-4">
-              {/* Category chips */}
-              <div>
-                <p className="text-gray-400 text-[10px] font-semibold uppercase tracking-widest mb-2">Category</p>
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setCategory(cat)}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap ${
-                        category === cat
-                          ? "bg-green-600 text-white border-green-600 shadow-sm"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-green-300 hover:text-green-700"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* City / District chips */}
-              {districts.length > 0 && (
-                <div>
-                  <p className="text-gray-400 text-[10px] font-semibold uppercase tracking-widest mb-2 flex items-center gap-1">
-                    <MapPin size={10} /> City / District
-                  </p>
-                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                    <button
-                      onClick={() => setDistrict("All")}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap ${
-                        district === "All"
-                          ? "bg-green-600 text-white border-green-600 shadow-sm"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-green-300 hover:text-green-700"
-                      }`}
-                    >
-                      All Cities
-                    </button>
-                    {districts.map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setDistrict(d)}
-                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap ${
-                          district === d
-                            ? "bg-green-600 text-white border-green-600 shadow-sm"
-                            : "bg-white text-gray-600 border-gray-200 hover:border-green-300 hover:text-green-700"
-                        }`}
-                      >
-                        {d}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          <button
+            ref={filtersBtnRef}
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={sheetOpen}
+            className="md:hidden relative inline-flex items-center gap-1.5 h-12 px-3.5 rounded-lg border border-line bg-white text-sm font-semibold text-ink active:bg-canvas"
+          >
+            <SlidersHorizontal size={17} aria-hidden />
+            Filters
+            {filterCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-forest text-white text-[11px] font-bold">
+                {filterCount}
+                <span className="sr-only"> active</span>
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* ── Results count ─────────────────────────────────────────────── */}
-        {total > 0 && !loading && (
-          <p className="text-gray-400 text-xs mb-4 font-medium">
-            Showing{" "}
-            <span className="text-gray-700">{start}–{end}</span>{" "}
-            of{" "}
-            <span className="text-gray-700">{total}</span> members
-          </p>
-        )}
+        <div className="hidden md:contents">{renderFields("filter")}</div>
+      </form>
 
-        {/* ── Grid ─────────────────────────────────────────────────────── */}
-        {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <div className="aspect-square bg-gray-100 animate-pulse" />
-                <div className="p-3 space-y-2">
-                  <div className="h-3 bg-gray-100 rounded animate-pulse" />
-                  <div className="h-2 bg-gray-100 rounded w-3/4 animate-pulse" />
-                </div>
+      {sheetOpen && (
+        <div className="md:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-labelledby="filters-title">
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Close filters"
+            onClick={() => setSheetOpen(false)}
+            className="absolute inset-0 w-full bg-ink/45 animate-fade"
+          />
+          <div className="animate-sheet absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto bg-white rounded-t-2xl shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="sticky top-0 bg-white pt-2.5 px-4 pb-3 border-b border-line">
+              <div className="mx-auto w-10 h-1 rounded-full bg-line" aria-hidden />
+              <div className="mt-2.5 flex items-center justify-between">
+                <h2 id="filters-title" className="text-lg font-bold text-ink">Filters</h2>
+                <button
+                  ref={sheetCloseRef}
+                  type="button"
+                  onClick={() => setSheetOpen(false)}
+                  aria-label="Close filters"
+                  className="w-10 h-10 -mr-2 inline-flex items-center justify-center rounded-md text-muted hover:bg-canvas"
+                >
+                  <X size={20} />
+                </button>
               </div>
-            ))}
-          </div>
-        ) : displayedMembers.length > 0 ? (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-              {displayedMembers.map((m) => (
-                <MemberCard
-                  key={m._id}
-                  membershipNo={m.membershipNo}
-                  firstName={m.firstName}
-                  lastName={m.lastName}
-                  membershipCategory={m.membershipCategory}
-                  photo={m.photo}
-                  businessName={m.businessName}
-                  district={m.district}
-                />
-              ))}
             </div>
-            
-            {/* Progressive loading indicator */}
-            {isProgressiveLoading && (
-              <div className="flex items-center justify-center gap-2 mt-6 text-gray-400">
-                <Loader2 size={16} className="animate-spin" />
-                <span className="text-xs">Loading more members...</span>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="text-center py-16 sm:py-24">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
-              <Users size={22} className="text-gray-300" />
-            </div>
-            <p className="text-gray-600 font-semibold text-sm sm:text-base">No members found</p>
-            <p className="text-gray-400 text-xs sm:text-sm mt-1">Try adjusting your search or filter</p>
-            {hasFilters && (
-              <button onClick={clearFilters} className="mt-4 text-xs text-green-600 hover:text-green-700 font-semibold underline">
-                Clear all filters
+            <div className="px-4 py-5 grid gap-4">{renderFields("sheet")}</div>
+            <div className="px-4 pt-2 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => update({ category: "", district: "", sort: "newest" })}
+                disabled={filterCount === 0}
+                className="btn btn-outline disabled:opacity-50"
+              >
+                Reset
               </button>
-            )}
+              <button type="button" onClick={() => setSheetOpen(false)} className="btn btn-primary">
+                {status === "ready" ? `Show ${total} ${total === 1 ? "member" : "members"}` : "Show results"}
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ── Pagination ───────────────────────────────────────────────── */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-10 sm:mt-12">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-green-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <ChevronLeft size={15} />
-              <span className="hidden sm:inline">Prev</span>
-            </button>
-            <span className="px-3 sm:px-4 py-2 text-sm text-gray-600">
-              <strong className="text-gray-900">{page}</strong>
-              <span className="text-gray-400"> / </span>
-              {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-green-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <span className="hidden sm:inline">Next</span>
-              <ChevronRight size={15} />
+      <div ref={resultsRef} className="scroll-mt-40 md:scroll-mt-24 mt-4 md:mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 min-h-9">
+        <p className="text-[13px] sm:text-sm text-muted" aria-live="polite">
+          {status === "loading" && "Loading members…"}
+          {status === "error" && "Members could not be loaded."}
+          {status === "ready" && (total > 0
+            ? <>Showing <strong className="text-ink">{start}–{end}</strong> of <strong className="text-ink">{total}</strong> {total === 1 ? "member" : "members"}</>
+            : "No matching members")}
+        </p>
+
+        {chips.length > 0 && (
+          <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex items-center gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
+            <span className="hidden sm:inline text-xs text-muted">Active filters:</span>
+            {chips.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={c.clear}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 h-8 max-w-[14rem] rounded-full border border-forest/25 bg-forest/5 pl-3 pr-2 text-xs font-medium text-forest hover:bg-forest/10"
+                aria-label={`Remove filter ${c.label}`}
+              >
+                <span className="truncate">{c.label}</span> <X size={13} className="flex-shrink-0" aria-hidden />
+              </button>
+            ))}
+            <button type="button" onClick={clearAll} className="flex-shrink-0 h-8 px-1 text-xs font-semibold text-muted underline underline-offset-2 hover:text-ink">
+              Clear all
             </button>
           </div>
         )}
       </div>
+
+      <div className="mt-3 sm:mt-4" aria-busy={status === "loading"}>
+        {status === "loading" ? (
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 lg:gap-6">
+            {Array.from({ length: 6 }).map((_, i) => <MemberCardSkeleton key={i} />)}
+          </div>
+        ) : status === "error" ? (
+          <div className="bg-white border border-line rounded-xl text-center px-5 py-12 sm:px-6 sm:py-14">
+            <AlertTriangle size={28} className="mx-auto text-gold" aria-hidden />
+            <h2 className="mt-3 text-lg font-bold text-ink">We couldn’t load the directory</h2>
+            <p className="mt-1 text-sm text-muted">Please check your connection and try again.</p>
+            <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="btn btn-primary mt-5 w-full sm:w-auto">
+              <RotateCw size={15} aria-hidden /> Try again
+            </button>
+          </div>
+        ) : data && data.members.length > 0 ? (
+          <ul className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 lg:gap-6">
+            {data.members.map((m, i) => (
+              <li key={m._id} className="animate-fade flex" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+                <MemberCard member={m} priority={i < 4} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="bg-white border border-line rounded-xl text-center px-5 py-12 sm:px-6 sm:py-14">
+            <Users size={28} className="mx-auto text-muted/60" aria-hidden />
+            <h2 className="mt-3 text-lg font-bold text-ink">No members found</h2>
+            <p className="mt-1 text-sm text-muted">Try a different name, or remove some filters.</p>
+            {chips.length > 0 && (
+              <button type="button" onClick={clearAll} className="btn btn-outline mt-5 w-full sm:w-auto">Clear all filters</button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {status === "ready" && totalPages > 1 && (
+        <nav aria-label="Pagination" className="mt-8 sm:mt-10 flex items-center justify-between sm:justify-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => goToPage(params.page - 1)}
+            disabled={params.page <= 1}
+            className={pageBtnClass}
+          >
+            <ChevronLeft size={16} aria-hidden /> Previous
+          </button>
+          <p className="sm:hidden text-sm text-muted">
+            Page <strong className="text-ink">{params.page}</strong> of {totalPages}
+          </p>
+          <div className="hidden sm:flex items-center gap-1.5">
+            {pageWindow(params.page, totalPages).map((n, i) =>
+              n === "…" ? (
+                <span key={`gap-${i}`} className="px-1 text-muted" aria-hidden>…</span>
+              ) : (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => goToPage(n)}
+                  aria-current={n === params.page ? "page" : undefined}
+                  aria-label={`Page ${n}`}
+                  className={`h-10 min-w-10 px-3 rounded-md text-sm font-semibold border ${
+                    n === params.page
+                      ? "bg-forest border-forest text-white"
+                      : "bg-white border-line text-ink hover:border-forest"
+                  }`}
+                >
+                  {n}
+                </button>
+              )
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => goToPage(params.page + 1)}
+            disabled={params.page >= totalPages}
+            className={pageBtnClass}
+          >
+            Next <ChevronRight size={16} aria-hidden />
+          </button>
+        </nav>
+      )}
     </div>
   );
 }

@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-manrope",
   display: "swap",
 });
 
@@ -14,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s | CFA Pakistan",
   },
   description:
-    "Chamber of Food and Agriculture Pakistan unites farmers, agribusinesses, exporters, and policymakers to promote sustainable agriculture, food security, and market development across Pakistan.",
+    "Discover members of the Chamber of Food and Agriculture Pakistan — a non-profit, independent organization working with farmers, food producers, agricultural professionals, and policy-makers.",
   keywords: [
     "CFA Pakistan",
     "Chamber of Food and Agriculture",
@@ -31,9 +38,6 @@ export const metadata: Metadata = {
   creator: "Chamber of Food and Agriculture Pakistan",
   publisher: "CFA Pakistan",
   metadataBase: new URL("https://cfa-directory.vercel.app"),
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     type: "website",
     locale: "en_PK",
@@ -41,7 +45,7 @@ export const metadata: Metadata = {
     siteName: "CFA Pakistan",
     title: "CFA Pakistan — Chamber of Food and Agriculture",
     description:
-      "Chamber of Food and Agriculture Pakistan unites farmers, agribusinesses, exporters, and policymakers to build a prosperous agricultural future.",
+      "Chamber of Food and Agriculture Pakistan unites farmers, agribusinesses, industry experts, and stakeholders to promote sustainable agriculture, food security, and market development.",
     images: [
       {
         url: "/logo.avif",
@@ -69,9 +73,6 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  verification: {
-    google: "google-site-verification-code", // Replace with actual code
-  },
 };
 
 export default function RootLayout({
@@ -80,7 +81,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`} data-scroll-behavior="smooth">
+    <html lang="en" className={`${inter.variable} ${manrope.variable} h-full`} data-scroll-behavior="smooth">
       <body className="min-h-full flex flex-col antialiased">
         {children}
       </body>

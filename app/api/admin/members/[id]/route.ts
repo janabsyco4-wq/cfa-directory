@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
 import { getSession } from "@/lib/session";
+import { normalizeFrame } from "@/lib/photoFrame";
 
 // GET single member
 export async function GET(
@@ -34,12 +35,14 @@ export async function PUT(
     await connectDB();
     const { id } = await params;
     const body = await req.json();
+    if (body.photoFrame) body.photoFrame = normalizeFrame(body.photoFrame);
 
-    // Check duplicate membershipNo/CNIC on OTHER documents
-    const conflict = await Member.findOne({
-      _id: { $ne: id },
-      $or: [{ membershipNo: body.membershipNo }, { cnic: body.cnic }],
-    });
+    // Check duplicate membershipNo/CNIC on OTHER documents; blank values are not identifiers.
+    const keys = [
+      body.membershipNo && { membershipNo: body.membershipNo },
+      body.cnic && { cnic: body.cnic },
+    ].filter(Boolean);
+    const conflict = keys.length && await Member.findOne({ _id: { $ne: id }, $or: keys });
     if (conflict) {
       return NextResponse.json(
         { error: "Another member with this Membership No or CNIC already exists." },

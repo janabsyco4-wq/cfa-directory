@@ -6,6 +6,15 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+export function isCloudinaryConfigured(): boolean {
+  const vals = [
+    process.env.CLOUDINARY_CLOUD_NAME,
+    process.env.CLOUDINARY_API_KEY,
+    process.env.CLOUDINARY_API_SECRET,
+  ];
+  return vals.every((v) => !!v && !/paste_your|your_/i.test(v));
+}
+
 /**
  * Upload a file buffer to Cloudinary under the cfa-members folder.
  * Returns the secure URL.
@@ -20,9 +29,10 @@ export async function uploadToCloudinary(
         folder: "cfa-members",
         public_id: filename,
         overwrite: true,
+        // Keep the whole photo (only shrink oversized ones) so admins can frame it themselves.
         transformation: [
-          { width: 400, height: 400, crop: "fill", gravity: "face" },
-          { quality: "auto", fetch_format: "auto" },
+          { width: 1200, height: 1200, crop: "limit" },
+          { quality: "auto" },
         ],
       },
       (error, result) => {

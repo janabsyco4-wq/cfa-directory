@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   Users, UserCheck, UserX, Clock,
   TrendingUp, UserPlus, ArrowRight, RefreshCw,
 } from "lucide-react";
 import CategoryBadge from "@/components/CategoryBadge";
+import MemberAvatar from "@/components/admin/MemberAvatar";
 import { MembershipCategory } from "@/models/Member";
+import type { PhotoFrame } from "@/lib/photoFrame";
 
 interface Stats {
   total: number;
@@ -23,6 +24,7 @@ interface Stats {
     membershipCategory: MembershipCategory;
     status: string;
     photo: string;
+    photoFrame?: PhotoFrame;
     joinedDate: string;
     membershipNo: string;
   }[];
@@ -35,15 +37,13 @@ function StatCard({
   color: string; sub?: string;
 }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
-          <Icon size={18} className="text-white" />
-        </div>
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-5">
+      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-3 sm:mb-4 ${color}`}>
+        <Icon size={18} className="text-white" aria-hidden />
       </div>
-      <p className="text-3xl font-extrabold text-white">{value}</p>
+      <p className="text-2xl sm:text-3xl font-extrabold text-white tabular-nums">{value}</p>
       <p className="text-gray-400 text-sm font-medium mt-0.5">{label}</p>
-      {sub && <p className="text-gray-600 text-xs mt-1">{sub}</p>}
+      {sub && <p className="text-gray-600 text-xs mt-1 hidden sm:block">{sub}</p>}
     </div>
   );
 }
@@ -79,25 +79,25 @@ export default function AdminDashboard() {
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-2xl font-extrabold text-white">Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-white">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-0.5">Overview of CFA membership</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3">
           <button
             onClick={load}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 text-gray-300 text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 min-h-10 px-4 rounded-xl bg-gray-800 text-gray-300 text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} aria-hidden />
             Refresh
           </button>
           <Link
             href="/admin/members/new"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-500 transition"
+            className="inline-flex items-center justify-center gap-2 min-h-10 px-4 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-500 transition whitespace-nowrap"
           >
-            <UserPlus size={14} />
+            <UserPlus size={14} aria-hidden />
             Add Member
           </Link>
         </div>
@@ -110,22 +110,22 @@ export default function AdminDashboard() {
       )}
 
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-gray-900 border border-gray-800 rounded-2xl h-36 animate-pulse" />
+            <div key={i} className="bg-gray-900 border border-gray-800 rounded-2xl h-32 sm:h-36 animate-pulse" />
           ))}
         </div>
       ) : stats ? (
         <>
           {/* Stat cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
             <StatCard label="Total Members"   value={stats.total}    icon={Users}     color="bg-green-600"  sub="all time" />
             <StatCard label="Active"          value={stats.active}   icon={UserCheck} color="bg-emerald-600" sub="currently active" />
             <StatCard label="Inactive"        value={stats.inactive} icon={UserX}     color="bg-red-600"    sub="deactivated" />
             <StatCard label="Pending"         value={stats.pending}  icon={Clock}     color="bg-amber-600"  sub="awaiting approval" />
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid lg:grid-cols-3 gap-6 items-start">
             {/* Category breakdown */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
               <div className="flex items-center gap-2 mb-5">
@@ -169,17 +169,12 @@ export default function AdminDashboard() {
               </div>
               <div className="space-y-3">
                 {stats.recent.map((m) => (
-                  <div key={m._id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 hover:bg-gray-800 transition">
-                    {/* Avatar */}
-                    <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 bg-green-600 flex items-center justify-center">
-                      {m.photo ? (
-                        <Image src={m.photo} alt="" width={36} height={36} className="object-cover w-full h-full" />
-                      ) : (
-                        <span className="text-white text-xs font-bold">
-                          {m.firstName[0]}{m.lastName[0]}
-                        </span>
-                      )}
-                    </div>
+                  <Link
+                    key={m._id}
+                    href={`/admin/members/${m._id}/edit`}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 hover:bg-gray-800 transition"
+                  >
+                    <MemberAvatar photo={m.photo} frame={m.photoFrame} firstName={m.firstName} lastName={m.lastName} size={40} />
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-semibold truncate">
                         {m.firstName} {m.lastName}
@@ -187,7 +182,7 @@ export default function AdminDashboard() {
                       <p className="text-gray-500 text-[11px] font-mono">{m.membershipNo}</p>
                     </div>
                     <CategoryBadge category={m.membershipCategory} size="sm" />
-                  </div>
+                  </Link>
                 ))}
                 {stats.recent.length === 0 && (
                   <p className="text-gray-600 text-sm text-center py-6">No members yet.</p>

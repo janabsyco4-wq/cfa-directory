@@ -1,46 +1,18 @@
-import { connectDB } from "@/lib/mongodb";
-import Member from "@/models/Member";
-import MembersClient, { type InitialData } from "./MembersClient";
+import { Suspense } from "react";
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
+import { queryMembers } from "@/lib/members";
+import { PAGE_SIZE, type DirectoryPage } from "@/lib/directory";
+import MembersClient from "./MembersClient";
+import MembersFromUrl from "./MembersFromUrl";
 
-// ISR: the default directory view is prerendered and cached at the edge,
-// refreshed every 2 minutes. Search/filter/pagination still hit /api/members.
+// The unfiltered first page is prerendered and refreshed every 2 minutes;
+// filtered views are fetched client-side from /api/members.
 export const revalidate = 120;
 
-async function getInitialData(): Promise<InitialData | null> {
+async function getInitialData(): Promise<DirectoryPage | null> {
   try {
-    await connectDB();
-    const query = { status: "Active" as const };
-    const limit = 20;
-
-    const [total, members, districts] = await Promise.all([
-      Member.countDocuments(query),
-      Member.find(query)
-        .select("membershipNo firstName lastName membershipCategory photo businessName district")
-        .sort({ joinedDate: -1 })
-        .limit(limit)
-        .lean(),
-      Member.distinct("district", { status: "Active", district: { $nin: [null, ""] } }),
-    ]);
-
-    districts.sort();
-
-    return {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      members: members.map((m: any) => ({
-        _id: String(m._id),
-        membershipNo: m.membershipNo,
-        firstName: m.firstName,
-        lastName: m.lastName,
-        membershipCategory: m.membershipCategory,
-        photo: m.photo || undefined,
-        businessName: m.businessName || undefined,
-        district: m.district || undefined,
-      })),
-      total,
-      page: 1,
-      totalPages: Math.ceil(total / limit),
-      districts,
-    };
+    return await queryMembers({ page: 1, limit: PAGE_SIZE });
   } catch {
     return null;
   }
@@ -48,5 +20,37 @@ async function getInitialData(): Promise<InitialData | null> {
 
 export default async function MembersPage() {
   const initialData = await getInitialData();
-  return <MembersClient initialData={initialData} />;
+
+  return (
+    <>
+      <section className="bg-white border-b border-line">
+        <div className="container-site py-7 sm:py-14">
+          <p className="eyebrow animate-rise">Member Directory</p>
+          <div className="mt-2.5 sm:mt-3 flex flex-col lg:flex-row lg:items-end justify-between gap-4 sm:gap-5">
+            <div className="animate-rise max-w-2xl" style={{ animationDelay: "60ms" }}>
+              <h1 className="text-[1.75rem] leading-tight sm:text-4xl font-extrabold text-ink text-balance">Explore Our Members</h1>
+              <p className="mt-2 sm:mt-3 text-muted text-[15px] sm:text-base leading-relaxed">
+                Discover professionals and organizations across Pakistan’s food and agriculture community.
+              </p>
+            </div>
+            <div className="animate-rise flex items-center justify-between sm:justify-start gap-3" style={{ animationDelay: "120ms" }}>
+              {initialData && initialData.total > 0 && (
+                <p className="text-sm text-muted whitespace-nowrap">
+                  <strong className="font-heading text-xl sm:text-2xl font-extrabold text-forest mr-1.5">{initialData.total.toLocaleString()}</strong>
+                  active {initialData.total === 1 ? "member" : "members"}
+                </p>
+              )}
+              <Link href="/members/lookup" className="btn btn-outline whitespace-nowrap !min-h-10 !py-2 !px-3.5 sm:!min-h-11 sm:!py-2.5 sm:!px-5">
+                <ShieldCheck size={16} aria-hidden /> Verify a member
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Suspense fallback={<MembersClient initialData={initialData} />}>
+        <MembersFromUrl initialData={initialData} />
+      </Suspense>
+    </>
+  );
 }

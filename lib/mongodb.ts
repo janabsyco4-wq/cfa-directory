@@ -30,6 +30,10 @@ export async function connectDB(): Promise<typeof mongoose> {
     });
   }
 
-  cached.conn = await cached.promise;
+  cached.conn = await cached.promise.catch((err) => {
+    // Drop the failed attempt so the next request retries instead of reusing the rejection.
+    cached.promise = null;
+    throw err;
+  });
   return cached.conn;
 }

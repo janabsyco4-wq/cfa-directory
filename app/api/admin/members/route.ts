@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
 import { getSession } from "@/lib/session";
+import { normalizeFrame } from "@/lib/photoFrame";
 
 // GET — paginated member list for admin table
 export async function GET(req: NextRequest) {
@@ -53,11 +54,14 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const body = await req.json();
+    if (body.photoFrame) body.photoFrame = normalizeFrame(body.photoFrame);
 
-    // Check duplicate membershipNo or CNIC
-    const existing = await Member.findOne({
-      $or: [{ membershipNo: body.membershipNo }, { cnic: body.cnic }],
-    });
+    // Check duplicate membershipNo or CNIC; blank values are not identifiers.
+    const keys = [
+      body.membershipNo && { membershipNo: body.membershipNo },
+      body.cnic && { cnic: body.cnic },
+    ].filter(Boolean);
+    const existing = keys.length && await Member.findOne({ $or: keys });
     if (existing) {
       return NextResponse.json(
         { error: "A member with this Membership No or CNIC already exists." },

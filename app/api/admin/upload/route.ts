@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { isCloudinaryConfigured, uploadToCloudinary } from "@/lib/cloudinary";
 import { getSession } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session.isLoggedIn) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (!isCloudinaryConfigured()) {
+    return NextResponse.json(
+      { error: "Photo storage is not set up: add real CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET to the server environment." },
+      { status: 503 }
+    );
+  }
 
   try {
     const formData = await req.formData();

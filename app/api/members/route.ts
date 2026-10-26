@@ -1,87 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import Member from "@/models/Member";
-import { DEMO_MEMBERS } from "@/lib/demoMembers";
+import { queryMembers } from "@/lib/members";
 
-export const dynamic = 'force-dynamic';
-
-// Cache districts in memory to avoid repeated DB calls
-let cachedDistricts: string[] | null = null;
-let districtsCacheTime = 0;
-const DISTRICTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const search   = (searchParams.get("search")   ?? "").trim();
-  const category = searchParams.get("category")  ?? "";
-  const district = (searchParams.get("district") ?? "").trim();
-  const page     = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
-  const limit    = Math.min(48, parseInt(searchParams.get("limit") ?? "24"));
+  const sp = req.nextUrl.searchParams;
 
   try {
-    await connectDB();
+    const data = await queryMembers({
+      search:   sp.get("search") ?? "",
+      category: sp.get("category") ?? "",
+      district: (sp.get("district") ?? "").trim(),
+      sort:     sp.get("sort") ?? "",
+      page:     parseInt(sp.get("page") ?? "1") || 1,
+      limit:    parseInt(sp.get("limit") ?? "24") || 24,
+    });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const query: any = { status: "Active" };
-    if (category && category !== "All") query.membershipCategory = category;
-    if (district) query.district = district; // Exact match instead of regex for performance
-    if (search) {
-      query.$or = [
-        { firstName:    { $regex: search, $options: "i" } },
-        { lastName:     { $regex: search, $options: "i" } },
-        { businessName: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    // Get cached districts or fetch if expired
-    const now = Date.now();
-    if (!cachedDistricts || (now - districtsCacheTime) > DISTRICTS_CACHE_TTL) {
-      cachedDistricts = await Member.distinct("district", { status: "Active", district: { $nin: [null, ""] } });
-      cachedDistricts.sort();
-      districtsCacheTime = now;
-    }
-
-    // Run only count + find in parallel (districts are cached)
-    const [total, members] = await Promise.all([
-      Member.countDocuments(query),
-      Member.find(query)
-        .select("membershipNo firstName lastName membershipCategory photo businessName district")
-        .sort({ joinedDate: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),
-    ]);
-
+    return NextResponse.json(data, {
+      headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300" },
+    });
+  } catch (err) {
+    console.error("[GET /api/members]", err);
     return NextResponse.json(
-      { members, total, page, totalPages: Math.ceil(total / limit), districts: cachedDistricts },
-      {
-        headers: {
-          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
-        },
-      }
+      { error: "The member directory is temporarily unavailable. Please try again." },
+      { status: 503 }
     );
-
-  } catch {
-    // ── MongoDB unavailable — serve demo data ──────────────────────────────
-    let filtered = DEMO_MEMBERS.filter((m) => m.status === "Active");
-
-    if (category && category !== "All") {
-      filtered = filtered.filter((m) => m.membershipCategory === category);
-    }
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(
-        (m) =>
-          m.firstName.toLowerCase().includes(q) ||
-          m.lastName.toLowerCase().includes(q)  ||
-          m.businessName.toLowerCase().includes(q)
-      );
-    }
-
-    const total      = filtered.length;
-    const paginated  = filtered.slice((page - 1) * limit, page * limit);
-    const totalPages = Math.max(1, Math.ceil(total / limit));
-
-    return NextResponse.json({ members: paginated, total, page, totalPages });
   }
 }

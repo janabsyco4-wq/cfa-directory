@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  devIndicators: false,
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },

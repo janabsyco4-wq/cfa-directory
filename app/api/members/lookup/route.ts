@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
-import { DEMO_MEMBERS } from "@/lib/demoMembers";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -41,21 +40,11 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ member });
 
-  } catch {
-    // ── MongoDB unavailable — search demo data ─────────────────────────────
-    const member = DEMO_MEMBERS.find(
-      (m) =>
-        m.membershipNo.toLowerCase() === q.toLowerCase() ||
-        m.cnic === q
+  } catch (err) {
+    console.error("[GET /api/members/lookup]", err);
+    return NextResponse.json(
+      { error: "Member verification is temporarily unavailable. Please try again." },
+      { status: 503 }
     );
-
-    if (!member) {
-      return NextResponse.json(
-        { error: "No member found with the provided Membership Number or CNIC." },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ member });
   }
 }

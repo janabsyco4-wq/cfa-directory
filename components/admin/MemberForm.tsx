@@ -2,8 +2,9 @@
 
 import { useState, useRef, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { Upload, X, Loader2, Save, ArrowLeft, Camera } from "lucide-react";
+import { Upload, Loader2, Save, ArrowLeft, Camera, Trash2 } from "lucide-react";
+import PhotoFramer from "@/components/admin/PhotoFramer";
+import { DEFAULT_FRAME, normalizeFrame, type PhotoFrame } from "@/lib/photoFrame";
 
 export type MemberFormData = {
   membershipNo: string;
@@ -23,6 +24,7 @@ export type MemberFormData = {
   status: string;
   joinedDate: string;
   photo: string;
+  photoFrame?: PhotoFrame;
 };
 
 const EMPTY: MemberFormData = {
@@ -62,7 +64,7 @@ function Field({
 }
 
 const inputCls =
-  "w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition";
+  "w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-white text-base sm:text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition";
 
 export default function MemberForm({ initialData, memberId, mode }: Props) {
   const router  = useRouter();
@@ -74,6 +76,7 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
   const [error, setError]         = useState("");
   const [success, setSuccess]     = useState("");
   const [preview, setPreview]     = useState<string>(initialData?.photo ?? "");
+  const [frame, setFrame]         = useState<PhotoFrame>(() => normalizeFrame(initialData?.photoFrame));
 
   function formatCnic(raw: string) {
     // Strip everything except digits, max 13 digits
@@ -120,11 +123,13 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
 
   async function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
 
     // Local preview
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
+    setFrame(DEFAULT_FRAME);
 
     setUploading(true);
     try {
@@ -146,7 +151,11 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
     e.preventDefault();
     setSaving(true); setError(""); setSuccess("");
 
-    const payload = { ...form, fee: Number(form.fee) };
+    const payload = {
+      ...form,
+      fee: Number(form.fee),
+      photoFrame: form.photo ? frame : undefined,
+    };
 
     try {
       const url    = mode === "new" ? "/api/admin/members" : `/api/admin/members/${memberId}`;
@@ -157,6 +166,7 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
+      window.scrollTo({ top: 0, behavior: "smooth" });
       if (!res.ok) { setError(json.error ?? "Save failed."); return; }
 
       setSuccess(mode === "new" ? "Member added successfully!" : "Member updated successfully!");
@@ -170,24 +180,49 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
     }
   }
 
+  const cancelButton = (
+    <button
+      type="button"
+      onClick={() => router.push("/admin/members")}
+      className="flex-1 sm:flex-none min-h-11 px-5 rounded-xl bg-gray-800 text-gray-300 text-sm font-semibold hover:bg-gray-700 transition"
+    >
+      Cancel
+    </button>
+  );
+  const saveButton = (
+    <button
+      type="submit"
+      disabled={saving || uploading}
+      className="flex-[2] sm:flex-none inline-flex items-center justify-center gap-2 min-h-11 px-6 rounded-xl bg-green-600 text-white text-sm font-bold hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
+    >
+      {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+      {saving ? "Saving..." : mode === "new" ? "Add Member" : "Save Changes"}
+    </button>
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
+    <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 lg:sticky lg:top-0 lg:z-20 lg:-mx-4 lg:px-4 lg:py-4 lg:-mt-4 lg:bg-gray-950/90 lg:backdrop-blur">
         <button
           type="button"
           onClick={() => router.push("/admin/members")}
-          className="p-2 rounded-xl bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white transition"
+          aria-label="Back to members"
+          className="p-2.5 rounded-xl bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white transition flex-shrink-0"
         >
           <ArrowLeft size={18} />
         </button>
-        <div>
-          <h1 className="text-2xl font-extrabold text-white">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-white leading-tight">
             {mode === "new" ? "Add New Member" : "Edit Member"}
           </h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            {mode === "new" ? "Fill in all required fields to register a member." : `Editing: ${form.firstName} ${form.lastName}`}
+          <p className="text-gray-500 text-sm mt-0.5 truncate">
+            {mode === "new" ? "Fill in the required fields to register a member." : `${form.firstName} ${form.lastName}`}
           </p>
+        </div>
+        <div className="hidden lg:flex items-center gap-3 ml-auto">
+          {cancelButton}
+          {saveButton}
         </div>
       </div>
 
@@ -205,55 +240,62 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
 
       <div className="grid lg:grid-cols-3 gap-6">
 
-        {/* Left — photo + membership */}
-        <div className="space-y-5">
-          {/* Photo upload */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-            <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-4">Photo</p>
-            <div className="flex flex-col items-center gap-4">
-              <div className="relative w-28 h-28 rounded-2xl overflow-hidden bg-gray-800 flex-shrink-0">
-                {preview ? (
-                  <>
-                    <Image src={preview} alt="Preview" fill className="object-cover" sizes="112px" />
-                    <button
-                      type="button"
-                      onClick={() => { setPreview(""); set("photo", ""); }}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-red-600 transition"
-                    >
-                      <X size={11} />
-                    </button>
-                  </>
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                    <Camera size={24} className="text-gray-600" />
-                    <span className="text-gray-600 text-[10px]">No photo</span>
-                  </div>
-                )}
-                {uploading && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <Loader2 size={20} className="text-white animate-spin" />
-                  </div>
-                )}
-              </div>
+        {/* Left — photo + membership (side by side on tablets) */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-1 gap-5 items-start content-start">
+          {/* Photo upload + framing */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Photo</p>
+              {preview && <span className="text-[11px] text-gray-500">Adjust how it shows</span>}
+            </div>
 
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/avif"
-                className="hidden"
-                onChange={handlePhotoChange}
-              />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
+
+            {preview ? (
+              <div className="relative">
+                <PhotoFramer src={preview} frame={frame} onChange={setFrame} />
+                {uploading && (
+                  <div className="absolute inset-0 rounded-xl bg-gray-900/70 flex items-center justify-center gap-2 text-sm text-white">
+                    <Loader2 size={18} className="animate-spin" /> Uploading...
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    className="inline-flex items-center justify-center gap-2 min-h-10 rounded-xl bg-gray-800 border border-gray-700 text-gray-300 text-sm hover:bg-gray-700 disabled:opacity-50 transition"
+                  >
+                    <Upload size={14} aria-hidden /> Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPreview(""); set("photo", ""); setFrame(DEFAULT_FRAME); }}
+                    disabled={uploading}
+                    className="inline-flex items-center justify-center gap-2 min-h-10 rounded-xl border border-gray-700 text-gray-400 text-sm hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 disabled:opacity-50 transition"
+                  >
+                    <Trash2 size={14} aria-hidden /> Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-gray-300 text-sm hover:bg-gray-700 disabled:opacity-50 transition w-full justify-center"
+                className="w-full flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-700 bg-gray-800/40 px-4 py-8 text-gray-400 hover:border-green-600/60 hover:text-gray-200 disabled:opacity-50 transition"
               >
-                <Upload size={14} />
-                {uploading ? "Uploading..." : "Upload Photo"}
+                {uploading ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} aria-hidden />}
+                <span className="text-sm font-semibold">{uploading ? "Uploading..." : "Upload photo"}</span>
+                <span className="text-[11px] text-gray-500">JPEG, PNG, WEBP · max 5MB</span>
               </button>
-              <p className="text-gray-600 text-[11px] text-center">JPEG, PNG, WEBP · max 5MB</p>
-            </div>
+            )}
           </div>
 
           {/* Membership fields */}
@@ -302,9 +344,9 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
                 <input value={form.fatherName} onChange={(e) => set("fatherName", e.target.value)}
                   placeholder="Muhammad Khan" className={inputCls} />
               </Field>
-              <Field label="CNIC" required>
+              <Field label="CNIC" required={mode === "new"}>
                 <input value={form.cnic} onChange={handleCnic}
-                  placeholder="42101-1234567-1" required maxLength={15} className={inputCls} />
+                  placeholder="42101-1234567-1" required={mode === "new"} maxLength={15} className={inputCls} />
               </Field>
               <Field label="Phone">
                 <input value={form.phone} onChange={handlePhone}
@@ -346,26 +388,16 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
               </div>
             </div>
           </div>
-
-          {/* Submit */}
-          <div className="flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => router.push("/admin/members")}
-              className="px-5 py-2.5 rounded-xl bg-gray-800 text-gray-300 text-sm font-semibold hover:bg-gray-700 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving || uploading}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-green-600 text-white text-sm font-bold hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              {saving ? "Saving..." : mode === "new" ? "Add Member" : "Save Changes"}
-            </button>
-          </div>
         </div>
+      </div>
+
+      {/* Pinned save bar so saving never needs a long scroll back down; desktop uses the sticky header instead */}
+      <div className="lg:hidden sticky bottom-0 z-20 mt-6 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-gray-950/90 backdrop-blur border-t border-gray-800 flex items-center justify-end gap-3">
+        <p className="hidden sm:block mr-auto text-xs text-gray-500">
+          Fields marked <span className="text-red-400">*</span> are required.
+        </p>
+        {cancelButton}
+        {saveButton}
       </div>
     </form>
   );

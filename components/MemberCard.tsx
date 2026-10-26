@@ -1,85 +1,61 @@
-import Image from "next/image";
-import CategoryBadge from "./CategoryBadge";
-import { MembershipCategory } from "@/models/Member";
-import { MapPin } from "lucide-react";
+import Link from "next/link";
+import { MapPin, ArrowRight } from "lucide-react";
+import MemberPhoto from "@/components/MemberPhoto";
+import type { PublicMember } from "@/lib/directory";
 
-interface MemberCardProps {
-  membershipNo: string;
-  firstName: string;
-  lastName: string;
-  membershipCategory: MembershipCategory;
-  photo?: string;
-  businessName?: string;
-  district?: string;
-}
-
-const avatarGradient: Record<MembershipCategory, string> = {
-  Corporate:        "from-emerald-500 to-green-600",
-  Executive:        "from-blue-500   to-blue-700",
-  Associate:        "from-violet-500 to-purple-700",
-  Overseas:         "from-sky-500    to-cyan-700",
-  Women:            "from-rose-500   to-pink-600",
-  Student:          "from-amber-400  to-orange-500",
-  "Honorary Member":"from-gray-500   to-gray-700",
-};
-
-export default function MemberCard({
-  membershipNo,
-  firstName,
-  lastName,
-  membershipCategory,
-  photo,
-  businessName,
-  district,
-}: MemberCardProps) {
-  const initials = `${firstName[0]}${lastName[0]}`.toUpperCase();
-  const gradient = avatarGradient[membershipCategory] ?? "from-green-500 to-emerald-600";
+export default function MemberCard({ member, priority }: { member: PublicMember; priority?: boolean }) {
+  const name = `${member.firstName} ${member.lastName}`.trim();
+  const number = member.membershipNo.replace(/^M\s*No\.?\s*/i, "");
 
   return (
-    <div className="group bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-xl hover:shadow-green-100 hover:-translate-y-1 transition-all duration-200">
+    <article className="group relative w-full flex flex-col bg-card border border-line rounded-xl overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:border-forest/40 hover:shadow-[0_10px_30px_-18px_rgba(16,59,43,0.45)] motion-safe:active:scale-[0.98] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-gold">
+      <div className="relative aspect-[4/5] sm:aspect-[4/3] bg-canvas overflow-hidden">
+        <MemberPhoto
+          src={member.photo}
+          frame={member.photoFrame}
+          alt={name}
+          priority={priority}
+          sizes="(min-width: 1024px) 400px, 50vw"
+        />
+        <span className="absolute top-2 left-2 sm:top-3 sm:left-3 rounded bg-white/95 px-1.5 py-0.5 sm:px-2 sm:py-1 text-[10px] sm:text-[11px] font-semibold text-forest shadow-sm">
+          {member.membershipCategory}
+        </span>
+      </div>
 
-      {/* Full-width photo area */}
-      <div className={`relative w-full aspect-[4/3] bg-gradient-to-br ${gradient}`}>
-        {photo ? (
-          <Image
-            src={photo}
-            alt={`${firstName} ${lastName}`}
-            fill
-            className="object-cover object-top"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-white font-bold text-4xl opacity-80">{initials}</span>
+      <div className="flex flex-col flex-1 p-3 sm:p-5">
+        <h3 className="font-heading font-bold text-ink text-sm sm:text-[17px] leading-snug line-clamp-2 break-words">{name}</h3>
+        {member.businessName && (
+          <p className="text-xs sm:text-sm text-muted mt-0.5 sm:mt-1 truncate">{member.businessName}</p>
+        )}
+
+        <dl className="mt-2 sm:mt-3 space-y-1 sm:space-y-1.5 text-xs sm:text-[13px] text-muted">
+          {member.district && (
+            <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+              <dt className="sr-only">District</dt>
+              <MapPin size={13} className="text-gold flex-shrink-0" aria-hidden />
+              <dd className="truncate">{member.district}</dd>
+            </div>
+          )}
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <dt className="text-muted/80">
+              <span className="sm:hidden">No.</span>
+              <span className="hidden sm:inline">Membership No.</span>
+            </dt>
+            <dd className="font-medium text-ink truncate">{number}</dd>
           </div>
-        )}
+        </dl>
 
-        {/* Category badge overlay — top right */}
-        <div className="absolute top-2.5 right-2.5">
-          <CategoryBadge category={membershipCategory} size="sm" />
+        <div className="mt-auto pt-3 sm:pt-4">
+          <Link
+            href={`/members/${member._id}`}
+            className="inline-flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-semibold text-forest after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+            aria-label={`View profile of ${name}`}
+          >
+            View Profile
+            <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </Link>
         </div>
       </div>
-
-      {/* Details below */}
-      <div className="p-4 space-y-1">
-        <h3 className="text-gray-900 font-bold text-sm leading-snug">
-          {firstName} {lastName}
-        </h3>
-
-        {businessName && businessName !== "N/A" && (
-          <p className="text-gray-500 text-xs truncate">{businessName}</p>
-        )}
-
-        <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-2">
-          {district ? (
-            <p className="text-gray-400 text-[10px] flex items-center gap-1">
-              <MapPin size={9} />
-              {district}
-            </p>
-          ) : <span />}
-          <p className="text-gray-300 text-[10px] font-mono tracking-wide">{membershipNo}</p>
-        </div>
-      </div>
-    </div>
+    </article>
   );
 }

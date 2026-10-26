@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   Search, X, UserPlus, Pencil, Trash2,
@@ -9,7 +8,9 @@ import {
   AlertTriangle, Loader2,
 } from "lucide-react";
 import CategoryBadge from "@/components/CategoryBadge";
+import MemberAvatar from "@/components/admin/MemberAvatar";
 import { MembershipCategory } from "@/models/Member";
+import type { PhotoFrame } from "@/lib/photoFrame";
 
 const CATEGORIES = ["All","Corporate","Executive","Associate","Overseas","Women","Student","Honorary Member"];
 const STATUSES   = ["All","Active","Inactive","Pending"];
@@ -24,6 +25,7 @@ interface Member {
   district: string;
   status: string;
   photo: string;
+  photoFrame?: PhotoFrame;
   joinedDate: string;
   phone: string;
   email: string;
@@ -103,57 +105,60 @@ export default function AdminMembersPage() {
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex items-center justify-between gap-4 mb-5 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-white">Members</h1>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-white">Members</h1>
           <p className="text-gray-500 text-sm mt-0.5">
             {data ? `${data.total} total members` : "Loading..."}
           </p>
         </div>
         <Link
           href="/admin/members/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-500 transition self-start sm:self-auto"
+          className="hidden sm:inline-flex items-center gap-2 min-h-10 px-4 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-500 transition"
         >
-          <UserPlus size={15} />
+          <UserPlus size={15} aria-hidden />
           Add Member
         </Link>
       </div>
 
       {/* Filters */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-5">
-        <div className="flex flex-col sm:flex-row gap-3">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3 sm:p-4 mb-4 sm:mb-5">
+        <div className="flex flex-col md:flex-row gap-2 sm:gap-3">
           {/* Search */}
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" aria-hidden />
             <input
-              type="text"
+              type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, membership no, CNIC..."
-              className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition"
+              placeholder="Search name, member no., CNIC"
+              aria-label="Search members"
+              className="w-full pl-9 pr-10 min-h-11 rounded-xl bg-gray-800 border border-gray-700 text-white text-base sm:text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition [&::-webkit-search-cancel-button]:hidden"
             />
             {search && (
-              <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
-                <X size={13} />
+              <button onClick={() => setSearch("")} aria-label="Clear search" className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-300">
+                <X size={14} />
               </button>
             )}
           </div>
-          {/* Category */}
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal size={14} className="text-gray-500 flex-shrink-0" />
+          {/* Category + status */}
+          <div className="grid grid-cols-2 md:flex items-center gap-2">
+            <SlidersHorizontal size={14} className="text-gray-500 flex-shrink-0 hidden md:block" aria-hidden />
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition"
+              aria-label="Filter by category"
+              className="w-full md:w-auto min-h-11 bg-gray-800 border border-gray-700 text-gray-300 text-base sm:text-sm rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition"
             >
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              {CATEGORIES.map((c) => <option key={c} value={c}>{c === "All" ? "All categories" : c}</option>)}
             </select>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition"
+              aria-label="Filter by status"
+              className="w-full md:w-auto min-h-11 bg-gray-800 border border-gray-700 text-gray-300 text-base sm:text-sm rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition"
             >
-              {STATUSES.map((s) => <option key={s}>{s}</option>)}
+              {STATUSES.map((s) => <option key={s} value={s}>{s === "All" ? "All statuses" : s}</option>)}
             </select>
           </div>
         </div>
@@ -169,10 +174,10 @@ export default function AdminMembersPage() {
                 <th className="text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-5 py-3.5">Member</th>
                 <th className="text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">Membership No</th>
                 <th className="text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">Category</th>
-                <th className="text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">District</th>
+                <th className="hidden xl:table-cell text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">District</th>
                 <th className="text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">Status</th>
-                <th className="text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">Joined</th>
-                <th className="px-4 py-3.5" />
+                <th className="hidden xl:table-cell text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">Joined</th>
+                <th className="px-4 py-3.5"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
@@ -197,38 +202,32 @@ export default function AdminMembersPage() {
                   <tr key={m._id} className="hover:bg-gray-800/40 transition">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 bg-green-700">
-                          {m.photo ? (
-                            <Image src={m.photo} alt="" width={36} height={36} className="object-cover w-full h-full" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <span className="text-white text-xs font-bold">{m.firstName[0]}{m.lastName[0]}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div>
+                        <MemberAvatar photo={m.photo} frame={m.photoFrame} firstName={m.firstName} lastName={m.lastName} size={40} />
+                        <div className="min-w-0">
                           <p className="text-white text-sm font-semibold">{m.firstName} {m.lastName}</p>
-                          <p className="text-gray-500 text-xs truncate max-w-[160px]">{m.businessName}</p>
+                          <p className="text-gray-500 text-xs truncate max-w-[180px]">{m.businessName}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 text-gray-400 text-xs font-mono">{m.membershipNo}</td>
+                    <td className="px-4 py-3.5 text-gray-400 text-xs font-mono whitespace-nowrap">{m.membershipNo}</td>
                     <td className="px-4 py-3.5"><CategoryBadge category={m.membershipCategory} /></td>
-                    <td className="px-4 py-3.5 text-gray-400 text-xs">{m.district}</td>
+                    <td className="hidden xl:table-cell px-4 py-3.5 text-gray-400 text-xs">{m.district}</td>
                     <td className="px-4 py-3.5"><StatusPill status={m.status} /></td>
-                    <td className="px-4 py-3.5 text-gray-500 text-xs">
+                    <td className="hidden xl:table-cell px-4 py-3.5 text-gray-500 text-xs whitespace-nowrap">
                       {new Date(m.joinedDate).toLocaleDateString("en-PK", { year: "numeric", month: "short", day: "numeric" })}
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 justify-end">
                         <Link
                           href={`/admin/members/${m._id}/edit`}
+                          aria-label={`Edit ${m.firstName} ${m.lastName}`}
                           className="p-2 rounded-lg text-gray-500 hover:bg-gray-700 hover:text-green-400 transition"
                         >
                           <Pencil size={14} />
                         </Link>
                         <button
                           onClick={() => { setDeleteId(m._id); setDeleteName(`${m.firstName} ${m.lastName}`); }}
+                          aria-label={`Delete ${m.firstName} ${m.lastName}`}
                           className="p-2 rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-400 transition"
                         >
                           <Trash2 size={14} />
@@ -255,33 +254,35 @@ export default function AdminMembersPage() {
             <p className="text-center text-gray-600 py-12 text-sm">No members found.</p>
           ) : (
             data?.members.map((m) => (
-              <div key={m._id} className="p-4 flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-green-700">
-                  {m.photo ? (
-                    <Image src={m.photo} alt="" width={44} height={44} className="object-cover w-full h-full" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">{m.firstName[0]}{m.lastName[0]}</span>
-                    </div>
-                  )}
-                </div>
+              <div key={m._id} className="relative p-3 sm:p-4 flex items-center gap-3 active:bg-gray-800/60 transition">
+                <MemberAvatar photo={m.photo} frame={m.photoFrame} firstName={m.firstName} lastName={m.lastName} size={52} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-semibold">{m.firstName} {m.lastName}</p>
-                  <p className="text-gray-500 text-[11px] font-mono">{m.membershipNo}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <CategoryBadge category={m.membershipCategory} />
+                  <Link
+                    href={`/admin/members/${m._id}/edit`}
+                    className="block text-white text-sm font-semibold truncate after:absolute after:inset-0 after:content-['']"
+                  >
+                    {m.firstName} {m.lastName}
+                  </Link>
+                  <p className="text-gray-500 text-[11px] font-mono truncate">{m.membershipNo}{m.district ? ` · ${m.district}` : ""}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <CategoryBadge category={m.membershipCategory} size="sm" />
                     <StatusPill status={m.status} />
                   </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <Link href={`/admin/members/${m._id}/edit`} className="p-2 rounded-lg text-gray-500 hover:bg-gray-700 hover:text-green-400 transition">
-                    <Pencil size={14} />
+                <div className="relative z-10 flex items-center">
+                  <Link
+                    href={`/admin/members/${m._id}/edit`}
+                    aria-label={`Edit ${m.firstName} ${m.lastName}`}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-700 hover:text-green-400 transition"
+                  >
+                    <Pencil size={16} />
                   </Link>
                   <button
                     onClick={() => { setDeleteId(m._id); setDeleteName(`${m.firstName} ${m.lastName}`); }}
-                    className="p-2 rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-400 transition"
+                    aria-label={`Delete ${m.firstName} ${m.lastName}`}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-400 transition"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>

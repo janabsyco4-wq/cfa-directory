@@ -29,6 +29,7 @@ export interface IMember extends Document {
   status: MemberStatus;
   joinedDate: Date;
   photo: string;
+  photoFrame?: { x: number; y: number; zoom: number };
 }
 
 const MemberSchema = new Schema<IMember>(
@@ -58,6 +59,17 @@ const MemberSchema = new Schema<IMember>(
     },
     joinedDate: { type: Date, default: Date.now },
     photo: { type: String, default: "" },
+    photoFrame: {
+      type: new Schema(
+        {
+          x: { type: Number, min: 0, max: 100 },
+          y: { type: Number, min: 0, max: 100 },
+          zoom: { type: Number, min: 1, max: 2.5 },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
   },
   { timestamps: true }
 );

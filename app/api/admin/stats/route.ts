@@ -22,7 +22,7 @@ export async function GET() {
       Member.find()
         .sort({ createdAt: -1 })
         .limit(5)
-        .select("firstName lastName membershipCategory status photo joinedDate membershipNo")
+        .select("firstName lastName membershipCategory status photo photoFrame joinedDate membershipNo")
         .lean(),
     ]);
 
