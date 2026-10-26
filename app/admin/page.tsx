@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ElementType } from "react";
 import Link from "next/link";
 import {
-  Users, UserCheck, UserX, Clock,
-  TrendingUp, UserPlus, ArrowRight, RefreshCw,
+  Users, UserCheck, UserX, Clock, ChartPie,
+  UserPlus, ArrowRight, RefreshCw, ChevronRight,
 } from "lucide-react";
-import CategoryBadge from "@/components/CategoryBadge";
 import MemberAvatar from "@/components/admin/MemberAvatar";
-import { MembershipCategory } from "@/models/Member";
+import type { MembershipCategory } from "@/models/Member";
 import type { PhotoFrame } from "@/lib/photoFrame";
 
 interface Stats {
@@ -31,167 +30,201 @@ interface Stats {
 }
 
 function StatCard({
-  label, value, icon: Icon, color, sub,
+  label, value, icon: Icon, color,
 }: {
-  label: string; value: number | string; icon: React.ElementType;
-  color: string; sub?: string;
+  label: string; value: number; icon: ElementType; color: string;
 }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-5">
-      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-3 sm:mb-4 ${color}`}>
-        <Icon size={18} className="text-white" aria-hidden />
+    <div className="flex items-center justify-between gap-2 rounded-2xl border border-gray-800 bg-gray-900 p-4">
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-gray-400">{label}</p>
+        <p className="mt-1 text-[1.75rem] font-extrabold leading-none tracking-tight text-white tabular-nums">{value}</p>
       </div>
-      <p className="text-2xl sm:text-3xl font-extrabold text-white tabular-nums">{value}</p>
-      <p className="text-gray-400 text-sm font-medium mt-0.5">{label}</p>
-      {sub && <p className="text-gray-600 text-xs mt-1 hidden sm:block">{sub}</p>}
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${color}`}>
+        <Icon size={18} aria-hidden />
+      </span>
     </div>
   );
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Corporate:        "bg-emerald-500",
-  Executive:        "bg-blue-500",
-  Associate:        "bg-violet-500",
-  Overseas:         "bg-sky-500",
-  Women:            "bg-rose-500",
-  Student:          "bg-amber-500",
-  "Honorary Member":"bg-gray-500",
+  Corporate: "#34d399",
+  Executive: "#60a5fa",
+  Associate: "#a78bfa",
+  Overseas: "#38bdf8",
+  Women: "#fb7185",
+  Student: "#fbbf24",
+  "Honorary Member": "#9ca3af",
 };
 
 export default function AdminDashboard() {
-  const [stats, setStats]   = useState<Stats | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState("");
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
 
-  async function load() {
-    setLoading(true); setError("");
-    try {
-      const res  = await fetch("/api/admin/stats");
-      const json = await res.json();
-      if (!res.ok) setError(json.error ?? "Failed to load stats.");
-      else         setStats(json);
-    } catch { setError("Failed to load stats."); }
-    finally   { setLoading(false); }
+  useEffect(() => {
+    const controller = new AbortController();
+    async function load() {
+      try {
+        const res = await fetch("/api/admin/stats", { signal: controller.signal });
+        const json = await res.json();
+        if (!res.ok) setError(json.error ?? "Failed to load stats.");
+        else setStats(json);
+      } catch {
+        if (!controller.signal.aborted) setError("Failed to load stats.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    void load();
+    return () => controller.abort();
+  }, [refresh]);
+
+  function reload() {
+    setLoading(true);
+    setError("");
+    setRefresh((value) => value + 1);
   }
 
-  useEffect(() => { load(); }, []);
+  const categories = Object.entries(stats?.categories ?? {});
+  let end = 0;
+  const segments = categories.map(([category, count]) => {
+    const start = end;
+    end += stats?.total ? (count / stats.total) * 100 : 0;
+    return `${CATEGORY_COLORS[category] ?? "#9ca3af"} ${start}% ${end}%`;
+  });
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sm:mb-8">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white">Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Overview of CFA membership</p>
+    <div className="mx-auto max-w-6xl space-y-4 sm:space-y-5">
+      <header className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">Dashboard</h1>
+          <p className="mt-1 text-xs text-gray-400 sm:text-sm">Your membership overview</p>
         </div>
-        <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           <button
-            onClick={load}
+            type="button"
+            onClick={reload}
             disabled={loading}
-            className="inline-flex items-center justify-center gap-2 min-h-10 px-4 rounded-xl bg-gray-800 text-gray-300 text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50"
+            aria-label="Refresh dashboard"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-gray-700 bg-gray-900 px-3 text-sm font-medium text-gray-300 transition hover:bg-gray-800 disabled:opacity-50"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} aria-hidden />
-            Refresh
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} aria-hidden />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
           <Link
             href="/admin/members/new"
-            className="inline-flex items-center justify-center gap-2 min-h-10 px-4 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-500 transition whitespace-nowrap"
+            className="hidden min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-500 sm:inline-flex"
           >
-            <UserPlus size={14} aria-hidden />
-            Add Member
+            <UserPlus size={16} aria-hidden /> Add Member
           </Link>
         </div>
-      </div>
+      </header>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-3 text-sm mb-6">
-          {error} — Make sure MongoDB is connected.
+        <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error} — Please try refreshing the dashboard.
         </div>
       )}
 
-      {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-gray-900 border border-gray-800 rounded-2xl h-32 sm:h-36 animate-pulse" />
-          ))}
-        </div>
-      ) : stats ? (
-        <>
-          {/* Stat cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-            <StatCard label="Total Members"   value={stats.total}    icon={Users}     color="bg-green-600"  sub="all time" />
-            <StatCard label="Active"          value={stats.active}   icon={UserCheck} color="bg-emerald-600" sub="currently active" />
-            <StatCard label="Inactive"        value={stats.inactive} icon={UserX}     color="bg-red-600"    sub="deactivated" />
-            <StatCard label="Pending"         value={stats.pending}  icon={Clock}     color="bg-amber-600"  sub="awaiting approval" />
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-6 items-start">
-            {/* Category breakdown */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-5">
-                <TrendingUp size={16} className="text-green-400" />
-                <h2 className="text-white font-bold text-sm">By Category</h2>
-              </div>
-              <div className="space-y-3">
-                {Object.entries(stats.categories).map(([cat, count]) => {
-                  const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
-                  return (
-                    <div key={cat}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-gray-400 text-xs font-medium">{cat}</span>
-                        <span className="text-white text-xs font-bold">{count}</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${CATEGORY_COLORS[cat] ?? "bg-gray-500"}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+      <div aria-busy={loading} className="space-y-4 sm:space-y-5">
+        {loading && !stats ? (
+          <>
+            <div role="status" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <span className="sr-only">Loading membership overview</span>
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className="h-[86px] animate-pulse rounded-2xl border border-gray-800 bg-gray-900" />
+              ))}
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {Array.from({ length: 2 }, (_, i) => (
+                <div key={i} aria-hidden className="h-80 animate-pulse rounded-2xl border border-gray-800 bg-gray-900" />
+              ))}
+            </div>
+          </>
+        ) : stats ? (
+          <>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <StatCard label="Total Members" value={stats.total} icon={Users} color="bg-green-500/10 text-green-300" />
+              <StatCard label="Active" value={stats.active} icon={UserCheck} color="bg-emerald-500/10 text-emerald-300" />
+              <StatCard label="Inactive" value={stats.inactive} icon={UserX} color="bg-rose-500/10 text-rose-300" />
+              <StatCard label="Pending" value={stats.pending} icon={Clock} color="bg-amber-500/10 text-amber-300" />
             </div>
 
-            {/* Recent members */}
-            <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                  <Users size={16} className="text-green-400" />
-                  <h2 className="text-white font-bold text-sm">Recent Members</h2>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)]">
+              <section aria-labelledby="category-heading" className="flex min-w-0 flex-col rounded-2xl border border-gray-800 bg-gray-900">
+                <div className="flex items-center justify-between gap-3 border-b border-gray-800 px-4 py-3.5">
+                  <h2 id="category-heading" className="flex items-center gap-2 text-sm font-semibold text-white">
+                    <ChartPie size={16} className="text-green-400" aria-hidden /> By Category
+                  </h2>
+                  <span className="text-xs text-gray-500">{categories.length} categories</span>
                 </div>
-                <Link
-                  href="/admin/members"
-                  className="flex items-center gap-1 text-green-400 text-xs font-semibold hover:text-green-300 transition"
-                >
-                  View all <ArrowRight size={12} />
-                </Link>
-              </div>
-              <div className="space-y-3">
-                {stats.recent.map((m) => (
-                  <Link
-                    key={m._id}
-                    href={`/admin/members/${m._id}/edit`}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 hover:bg-gray-800 transition"
-                  >
-                    <MemberAvatar photo={m.photo} frame={m.photoFrame} firstName={m.firstName} lastName={m.lastName} size={40} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-semibold truncate">
-                        {m.firstName} {m.lastName}
-                      </p>
-                      <p className="text-gray-500 text-[11px] font-mono">{m.membershipNo}</p>
+                {categories.length > 0 ? (
+                  <div className="flex flex-1 items-center gap-4 p-4 lg:gap-5 lg:p-5">
+                    <div
+                      aria-hidden
+                      className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full lg:h-28 lg:w-28"
+                      style={{ background: `conic-gradient(${segments.join(", ")})` }}
+                    >
+                      <div className="flex h-[76px] w-[76px] flex-col items-center justify-center rounded-full bg-gray-900 lg:h-[90px] lg:w-[90px]">
+                        <span className="text-2xl font-extrabold tracking-tight text-white tabular-nums">{stats.total}</span>
+                        <span className="mt-0.5 text-[10px] text-gray-400">Members</span>
+                      </div>
                     </div>
-                    <CategoryBadge category={m.membershipCategory} size="sm" />
-                  </Link>
-                ))}
-                {stats.recent.length === 0 && (
-                  <p className="text-gray-600 text-sm text-center py-6">No members yet.</p>
+                    <ul className="min-w-0 flex-1 space-y-3">
+                      {categories.map(([category, count]) => (
+                        <li key={category} className="flex items-center gap-2.5 text-xs">
+                          <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[category] ?? "#9ca3af" }} />
+                          <span className="min-w-0 flex-1 text-gray-300">{category}</span>
+                          <span className="font-semibold text-white tabular-nums">{count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="p-6 text-center text-sm text-gray-400">Categories will appear when members are added.</p>
                 )}
-              </div>
+              </section>
+
+              <section aria-labelledby="recent-heading" className="min-w-0 rounded-2xl border border-gray-800 bg-gray-900">
+                <div className="flex items-center justify-between gap-3 border-b border-gray-800 px-4 py-3.5">
+                  <h2 id="recent-heading" className="flex items-center gap-2 text-sm font-semibold text-white">
+                    <Users size={16} className="text-green-400" aria-hidden /> Recent Members
+                  </h2>
+                  <Link href="/admin/members" className="inline-flex items-center gap-1 text-xs font-semibold text-green-400 hover:text-green-300">
+                    View all <ArrowRight size={13} aria-hidden />
+                  </Link>
+                </div>
+                <ul className="divide-y divide-gray-800/80 px-3">
+                  {stats.recent.map((member) => (
+                    <li key={member._id}>
+                      <Link
+                        href={`/admin/members/${member._id}/edit`}
+                        className="-mx-1 flex min-h-12 items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-gray-800/60 focus-visible:outline-2 focus-visible:outline-green-500 sm:min-h-14 sm:py-2"
+                      >
+                        <MemberAvatar photo={member.photo} frame={member.photoFrame} firstName={member.firstName} lastName={member.lastName} size={36} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-gray-100">{member.firstName} {member.lastName}</p>
+                          <p className="mt-0.5 truncate font-mono text-[11px] leading-none text-gray-500 sm:leading-normal">{member.membershipNo}</p>
+                        </div>
+                        <span className="hidden shrink-0 rounded-md border border-gray-700 px-2 py-1 text-[10px] font-medium text-gray-300 xl:inline-flex">{member.membershipCategory}</span>
+                        <ChevronRight size={15} className="shrink-0 text-gray-500" aria-hidden />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {stats.recent.length === 0 && (
+                  <div className="p-6 text-center">
+                    <p className="text-sm text-gray-400">No members yet.</p>
+                    <Link href="/admin/members/new" className="mt-3 inline-block text-sm font-semibold text-green-400 hover:text-green-300">Add your first member</Link>
+                  </div>
+                )}
+              </section>
             </div>
-          </div>
-        </>
-      ) : null}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }

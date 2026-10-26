@@ -3,7 +3,8 @@ import Image from "next/image";
 import Form from "next/form";
 import { ArrowRight, ArrowUpRight, Search, ShieldCheck } from "lucide-react";
 import MemberCard from "@/components/MemberCard";
-import { getDirectoryStats, getFeaturedMembers } from "@/lib/members";
+import { CATEGORIES } from "@/lib/directory";
+import { getFeaturedMembers } from "@/lib/members";
 import { about, contact, FOUNDED, leadership, officialPages } from "@/lib/site";
 
 export const revalidate = 300;
@@ -17,10 +18,9 @@ export const metadata = {
 
 async function loadHomeData() {
   try {
-    const [stats, featured] = await Promise.all([getDirectoryStats(), getFeaturedMembers(4)]);
-    return { stats, featured };
+    return { featured: await getFeaturedMembers(4) };
   } catch {
-    return { stats: null, featured: [] };
+    return { featured: [] };
   }
 }
 
@@ -52,16 +52,13 @@ const showcase = [
 ];
 
 export default async function HomePage() {
-  const { stats, featured } = await loadHomeData();
+  const { featured } = await loadHomeData();
 
-  const statItems = stats
-    ? [
-        { value: stats.members,       label: stats.members === 1 ? "Active member" : "Active members" },
-        { value: stats.districts,     label: stats.districts === 1 ? "District represented" : "Districts represented" },
-        { value: stats.categories,    label: stats.categories === 1 ? "Membership category" : "Membership categories" },
-        { value: stats.organizations, label: stats.organizations === 1 ? "Organization listed" : "Organizations listed" },
-      ].filter((s) => s.value > 0)
-    : [];
+  const statItems = [
+    { value: "3,000+", label: "CFA members" },
+    { value: "30+", label: "Districts represented" },
+    { value: CATEGORIES.length, label: "Membership categories" },
+  ];
 
   const organizationSchema = {
     "@context": "https://schema.org",
@@ -142,28 +139,40 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Stats (live from the member database) */}
-      {statItems.length > 0 && (
-        <section aria-label="Directory at a glance" className="bg-white border-b border-line">
-          <div className="container-site">
-            <dl className={`grid ${statItems.length >= 4 ? "grid-cols-2 lg:grid-cols-4" : ["", "grid-cols-1", "grid-cols-2", "grid-cols-3"][statItems.length]}`}>
-              {statItems.map((s, i) => (
-                <div
-                  key={s.label}
-                  className={`py-6 sm:py-9 px-2 sm:px-6 text-center border-line ${
-                    statItems.length >= 4
-                      ? `${i % 2 === 1 ? "border-l" : ""} ${i > 0 ? "lg:border-l" : ""} ${i >= 2 ? "border-t lg:border-t-0" : ""}`
-                      : i > 0 ? "border-l" : ""
-                  }`}
-                >
-                  <dd className="font-heading text-[1.65rem] leading-none sm:text-4xl font-extrabold text-forest">{s.value.toLocaleString()}</dd>
-                  <dt className="mt-2 text-[11px] leading-snug sm:text-sm text-muted font-medium">{s.label}</dt>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </section>
-      )}
+      <section aria-label="CFA network at a glance" className="bg-white border-b border-line">
+        <div className="container-site">
+          <dl className="grid grid-cols-3 divide-x divide-line">
+            {statItems.map((stat) => (
+              <div key={stat.label} className="py-6 sm:py-9 px-2 sm:px-6 text-center">
+                <dd className="font-heading text-[1.65rem] leading-none sm:text-4xl font-extrabold text-forest">{stat.value.toLocaleString()}</dd>
+                <dt className="mt-2 text-[11px] leading-snug sm:text-sm text-muted font-medium">{stat.label}</dt>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      <section aria-labelledby="membership-categories-heading" className="container-site pt-8 sm:pt-12">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h2 id="membership-categories-heading" className="text-xl sm:text-2xl font-extrabold text-ink">Our Membership Categories</h2>
+          <Link href="/members" className="inline-flex items-center gap-1.5 text-sm font-semibold text-forest hover:text-forest-deep">
+            Browse the directory <ArrowRight size={15} aria-hidden />
+          </Link>
+        </div>
+        <ul className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {CATEGORIES.map((category) => (
+            <li key={category}>
+              <Link
+                href={`/members?category=${encodeURIComponent(category)}`}
+                className="group flex min-h-16 items-center justify-between gap-2 rounded-lg border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition-colors hover:border-forest/40 hover:text-forest"
+              >
+                {category}
+                <ArrowRight size={15} className="shrink-0 text-gold transition-transform group-hover:translate-x-0.5" aria-hidden />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {/* About */}
       <section className="container-site py-12 sm:py-24">

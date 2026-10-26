@@ -62,7 +62,7 @@ export default function AdminSidebar() {
   );
 
   const links = (
-    <div className="flex flex-col h-full">
+    <div className="flex min-h-0 flex-1 flex-col">
       <nav className="flex-1 px-3 py-4 space-y-1" aria-label="Admin">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = href === activeHref;
@@ -109,8 +109,8 @@ export default function AdminSidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-gray-900 border-r border-gray-800 z-40">
-        <div className="px-5 h-20 flex items-center border-b border-gray-800">{brand}</div>
+      <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-dvh w-64 bg-gray-900 border-r border-gray-800 z-40">
+        <div className="px-5 h-20 shrink-0 flex items-center border-b border-gray-800">{brand}</div>
         {links}
       </aside>
 
@@ -157,7 +157,7 @@ export default function AdminSidebar() {
                 <X size={18} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto">{links}</div>
+            <div className="min-h-0 flex-1 flex flex-col overflow-y-auto">{links}</div>
           </aside>
         </div>
       )}
