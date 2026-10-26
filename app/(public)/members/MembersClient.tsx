@@ -79,18 +79,22 @@ export default function MembersClient({
   const [status, setStatus]           = useState<"ready" | "loading" | "error">(useInitial ? "ready" : "loading");
   const [reloadKey, setReloadKey]     = useState(0);
   const [sheetOpen, setSheetOpen]     = useState(false);
-  const skipFetch    = useRef(useInitial);
   const resultsRef   = useRef<HTMLDivElement>(null);
   const filtersBtnRef = useRef<HTMLButtonElement>(null);
   const sheetCloseRef = useRef<HTMLButtonElement>(null);
 
-  const update = (patch: Partial<DirectoryParams>) =>
+  const update = (patch: Partial<DirectoryParams>) => {
+    setStatus("loading");
     setParams((p) => ({ ...p, page: 1, ...patch }));
+  };
 
   useEffect(() => {
     const value = searchInput.trim();
     if (value === params.search) return;
-    const t = setTimeout(() => setParams((p) => ({ ...p, search: value, page: 1 })), 350);
+    const t = setTimeout(() => {
+      setStatus("loading");
+      setParams((p) => ({ ...p, search: value, page: 1 }));
+    }, 350);
     return () => clearTimeout(t);
   }, [searchInput, params.search]);
 
@@ -103,15 +107,10 @@ export default function MembersClient({
   }, [params]);
 
   useEffect(() => {
-    if (skipFetch.current) {
-      skipFetch.current = false;
-      return;
-    }
     const ctrl = new AbortController();
-    setStatus("loading");
     const q = new URLSearchParams(toQuery(params));
     q.set("limit", String(PAGE_SIZE));
-    fetch(`/api/members?${q}`, { signal: ctrl.signal })
+    fetch(`/api/members?${q}`, { signal: ctrl.signal, cache: "no-store" })
       .then(async (res) => {
         const json = await res.json();
         if (!res.ok || !Array.isArray(json.members)) throw new Error(json.error);
@@ -119,7 +118,7 @@ export default function MembersClient({
       })
       .then((json) => {
         setData(json);
-        if (json.districts?.length) setDistricts(json.districts);
+        setDistricts(json.districts);
         setStatus("ready");
       })
       .catch((err) => {
@@ -147,11 +146,13 @@ export default function MembersClient({
   }, [sheetOpen]);
 
   function goToPage(page: number) {
+    setStatus("loading");
     setParams((p) => ({ ...p, page }));
     resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function clearAll() {
+    setStatus("loading");
     setSearchInput("");
     setParams((p) => ({ ...DEFAULT_PARAMS, sort: p.sort }));
   }
@@ -324,7 +325,7 @@ export default function MembersClient({
           {status === "loading" && "Loading members…"}
           {status === "error" && "Members could not be loaded."}
           {status === "ready" && (total > 0
-            ? <>Showing <strong className="text-ink">{start}–{end}</strong> of <strong className="text-ink">{total}</strong> {total === 1 ? "member" : "members"}</>
+            ? <>Showing <strong className="text-ink">{start}–{end}</strong> of <strong className="text-ink">{total}</strong> active {total === 1 ? "member" : "members"}</>
             : "No matching members")}
         </p>
 
@@ -359,7 +360,7 @@ export default function MembersClient({
             <AlertTriangle size={28} className="mx-auto text-gold" aria-hidden />
             <h2 className="mt-3 text-lg font-bold text-ink">We couldn’t load the directory</h2>
             <p className="mt-1 text-sm text-muted">Please check your connection and try again.</p>
-            <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="btn btn-primary mt-5 w-full sm:w-auto">
+            <button type="button" onClick={() => { setStatus("loading"); setReloadKey((k) => k + 1); }} className="btn btn-primary mt-5 w-full sm:w-auto">
               <RotateCw size={15} aria-hidden /> Try again
             </button>
           </div>

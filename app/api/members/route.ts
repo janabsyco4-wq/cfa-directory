@@ -17,13 +17,13 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(data, {
-      headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300" },
+      headers: { "Cache-Control": "no-store" },
     });
   } catch (err) {
     console.error("[GET /api/members]", err);
     return NextResponse.json(
       { error: "The member directory is temporarily unavailable. Please try again." },
-      { status: 503 }
+      { status: 503, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

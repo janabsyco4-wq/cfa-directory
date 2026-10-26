@@ -126,23 +126,45 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
     e.target.value = "";
     if (!file) return;
 
-    // Local preview
-    const objectUrl = URL.createObjectURL(file);
-    setPreview(objectUrl);
-    setFrame(DEFAULT_FRAME);
-
+    const previousFrame = frame;
+    let objectUrl: string | undefined;
+    setError("");
+    setSuccess("");
     setUploading(true);
     try {
+      objectUrl = URL.createObjectURL(file);
+      setPreview(objectUrl);
+      setFrame(DEFAULT_FRAME);
+
+      const authorization = await fetch("/api/admin/upload", { method: "POST" });
+      const signed = await authorization.json().catch(() => null);
+      if (!authorization.ok || !signed?.signature) {
+        throw new Error(signed?.error ?? "Could not authorize photo upload. Please sign in and try again.");
+      }
+
       const fd = new FormData();
       fd.append("file", file);
-      const res  = await fetch("/api/admin/upload", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Upload failed");
-      set("photo", json.url);
+      fd.append("api_key", signed.apiKey);
+      fd.append("signature", signed.signature);
+      for (const [key, value] of Object.entries(signed.params)) {
+        fd.append(key, String(value));
+      }
+      // Direct upload avoids the hosting platform's request-body limit.
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloudName)}/image/upload`, {
+        method: "POST", body: fd,
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.secure_url) {
+        throw new Error(json?.error?.message ?? "Photo upload failed. Please try again.");
+      }
+      set("photo", json.secure_url);
+      setPreview(json.secure_url);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : "Photo upload failed. Please try again.");
       setPreview(form.photo);
+      setFrame(previousFrame);
     } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
       setUploading(false);
     }
   }
@@ -252,8 +274,9 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
             <input
               ref={fileRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
+              accept="image/*"
               className="hidden"
+              disabled={uploading}
               onChange={handlePhotoChange}
             />
 
@@ -293,7 +316,7 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
               >
                 {uploading ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} aria-hidden />}
                 <span className="text-sm font-semibold">{uploading ? "Uploading..." : "Upload photo"}</span>
-                <span className="text-[11px] text-gray-500">JPEG, PNG, WEBP · max 5MB</span>
+                <span className="text-[11px] text-gray-500">Choose a photo, then adjust its position and zoom</span>
               </button>
             )}
           </div>

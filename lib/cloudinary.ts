@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { v2 as cloudinary } from "cloudinary";
 
 cloudinary.config({
@@ -15,33 +16,21 @@ export function isCloudinaryConfigured(): boolean {
   return vals.every((v) => !!v && !/paste_your|your_/i.test(v));
 }
 
-/**
- * Upload a file buffer to Cloudinary under the cfa-members folder.
- * Returns the secure URL.
- */
-export async function uploadToCloudinary(
-  buffer: Buffer,
-  filename: string
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: "cfa-members",
-        public_id: filename,
-        overwrite: true,
-        // Keep the whole photo (only shrink oversized ones) so admins can frame it themselves.
-        transformation: [
-          { width: 1200, height: 1200, crop: "limit" },
-          { quality: "auto" },
-        ],
-      },
-      (error, result) => {
-        if (error || !result) return reject(error);
-        resolve(result.secure_url);
-      }
-    );
-    uploadStream.end(buffer);
-  });
+export function getPhotoUploadSignature() {
+  const params = {
+    timestamp: Math.floor(Date.now() / 1000),
+    folder: "cfa-members",
+    public_id: `member_${randomUUID()}`,
+    overwrite: false,
+    // Raster output keeps uncommon photo formats browser-friendly without cropping.
+    format: "webp",
+  };
+  return {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    params,
+    signature: cloudinary.utils.api_sign_request(params, process.env.CLOUDINARY_API_SECRET!),
+  };
 }
 
 /**

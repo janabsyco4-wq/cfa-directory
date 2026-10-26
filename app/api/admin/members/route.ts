@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
 import { getSession } from "@/lib/session";
 import { normalizeFrame } from "@/lib/photoFrame";
+import { revalidateMemberPages } from "@/lib/members";
 
 // GET — paginated member list for admin table
 export async function GET(req: NextRequest) {
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     const member = await Member.create(body);
+    revalidateMemberPages(String(member._id));
     return NextResponse.json({ member }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Server error";

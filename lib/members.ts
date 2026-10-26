@@ -1,4 +1,5 @@
 import { isValidObjectId } from "mongoose";
+import { revalidatePath } from "next/cache";
 import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
 import { PAGE_SIZE, type DirectoryPage, type PublicMember, type PublicProfile, type SortKey } from "@/lib/directory";
@@ -42,15 +43,17 @@ function toPublic(m: any): PublicMember {
   };
 }
 
-let districtsCache: { at: number; value: string[] } | null = null;
-const DISTRICTS_TTL = 5 * 60 * 1000;
+export function revalidateMemberPages(id: string) {
+  revalidatePath("/");
+  revalidatePath("/members");
+  revalidatePath(`/members/${id}`);
+  revalidatePath("/api/stats");
+}
 
 export async function getDistricts(): Promise<string[]> {
-  if (districtsCache && Date.now() - districtsCache.at < DISTRICTS_TTL) return districtsCache.value;
   await connectDB();
   const value = (await Member.distinct("district", { status: "Active", district: { $nin: [null, ""] } })) as string[];
   value.sort((a, b) => a.localeCompare(b));
-  districtsCache = { at: Date.now(), value };
   return value;
 }
 
@@ -122,7 +125,7 @@ export async function getDirectoryStats() {
 
 export async function getFeaturedMembers(limit = 6) {
   await connectDB();
-  const docs = await Member.find({ status: "Active", photo: { $nin: [null, ""] } })
+  const docs = await Member.find({ status: "Active" })
     .select(PUBLIC_LIST_FIELDS)
     .sort({ joinedDate: -1, _id: -1 })
     .limit(limit)

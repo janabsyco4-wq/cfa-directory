@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
 import { getSession } from "@/lib/session";
 import { normalizeFrame } from "@/lib/photoFrame";
+import { revalidateMemberPages } from "@/lib/members";
 
 // GET single member
 export async function GET(
@@ -52,6 +53,7 @@ export async function PUT(
 
     const member = await Member.findByIdAndUpdate(id, body, { new: true, runValidators: true }).lean();
     if (!member) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    revalidateMemberPages(id);
     return NextResponse.json({ member });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Server error";
@@ -72,6 +74,7 @@ export async function DELETE(
     const { id } = await params;
     const member = await Member.findByIdAndDelete(id);
     if (!member) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    revalidateMemberPages(id);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
