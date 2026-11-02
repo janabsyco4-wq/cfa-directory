@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
-import { getSession } from "@/lib/session";
+import { requireAdmin } from "@/lib/admin";
 import { normalizeFrame } from "@/lib/photoFrame";
-import { revalidateMemberPages } from "@/lib/members";
+import { memberSaveError, revalidateMemberPages } from "@/lib/members";
+import { cardNumberQuery } from "@/lib/verification";
 
 // GET single member
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session.isLoggedIn) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     await connectDB();
@@ -29,8 +29,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session.isLoggedIn) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     await connectDB();
@@ -38,9 +37,9 @@ export async function PUT(
     const body = await req.json();
     if (body.photoFrame) body.photoFrame = normalizeFrame(body.photoFrame);
 
-    // Check duplicate membershipNo/CNIC on OTHER documents; blank values are not identifiers.
+    // Check duplicate membershipNo (ignoring spacing/punctuation) or CNIC on OTHER documents; blank values are not identifiers.
     const keys = [
-      body.membershipNo && { membershipNo: body.membershipNo },
+      body.membershipNo && (cardNumberQuery(body.membershipNo) ?? { membershipNo: body.membershipNo }),
       body.cnic && { cnic: body.cnic },
     ].filter(Boolean);
     const conflict = keys.length && await Member.findOne({ _id: { $ne: id }, $or: keys });
@@ -56,8 +55,39 @@ export async function PUT(
     revalidateMemberPages(id);
     return NextResponse.json({ member });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Server error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const { error, status } = memberSaveError(err);
+    return NextResponse.json({ error }, { status });
+  }
+}
+
+// PATCH membership card images only
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  try {
+    await connectDB();
+    const { id } = await params;
+    const body = await req.json();
+    const update: Record<string, string> = {};
+    for (const side of ["cardFront", "cardBack"] as const) {
+      if (!(side in body)) continue;
+      const url = body[side];
+      if (url !== "" && !(typeof url === "string" && url.startsWith("https://res.cloudinary.com/"))) {
+        return NextResponse.json({ error: "Invalid card image." }, { status: 400 });
+      }
+      update[side] = url;
+    }
+
+    const member = await Member.findByIdAndUpdate(id, { $set: update }, { new: true })
+      .select("cardFront cardBack")
+      .lean();
+    if (!member) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ member });
+  } catch {
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
@@ -66,8 +96,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session.isLoggedIn) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     await connectDB();

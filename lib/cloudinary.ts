@@ -16,15 +16,26 @@ export function isCloudinaryConfigured(): boolean {
   return vals.every((v) => !!v && !/paste_your|your_/i.test(v));
 }
 
-export function getPhotoUploadSignature() {
-  const params = {
+export type UploadKind = "photo" | "card" | "brand";
+
+const UPLOAD_PRESETS: Record<UploadKind, { folder: string; prefix: string; format?: string }> = {
+  // Raster output keeps uncommon photo formats browser-friendly without cropping.
+  photo: { folder: "cfa-members", prefix: "member", format: "webp" },
+  // Finished card artwork is stored untouched so it prints at its original quality.
+  card:  { folder: "cfa-cards", prefix: "card" },
+  // PNG keeps logo and signature transparency.
+  brand: { folder: "cfa-brand", prefix: "brand", format: "png" },
+};
+
+export function getPhotoUploadSignature(kind: UploadKind = "photo") {
+  const preset = UPLOAD_PRESETS[kind];
+  const params: Record<string, string | number | boolean> = {
     timestamp: Math.floor(Date.now() / 1000),
-    folder: "cfa-members",
-    public_id: `member_${randomUUID()}`,
+    folder: preset.folder,
+    public_id: `${preset.prefix}_${randomUUID()}`,
     overwrite: false,
-    // Raster output keeps uncommon photo formats browser-friendly without cropping.
-    format: "webp",
   };
+  if (preset.format) params.format = preset.format;
   return {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
     apiKey: process.env.CLOUDINARY_API_KEY,

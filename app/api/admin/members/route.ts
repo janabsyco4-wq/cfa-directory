@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
-import { getSession } from "@/lib/session";
+import { requireAdmin } from "@/lib/admin";
 import { normalizeFrame } from "@/lib/photoFrame";
-import { revalidateMemberPages } from "@/lib/members";
+import { escapeRegex, memberSaveError, revalidateMemberPages } from "@/lib/members";
+import { formatMemberNo } from "@/lib/memberNumber";
+import { cardNumberQuery } from "@/lib/verification";
 
 // GET — paginated member list for admin table
 export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session.isLoggedIn) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     await connectDB();
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
     const search   = (searchParams.get("search") ?? "").trim();
     const category = searchParams.get("category") ?? "";
     const status   = searchParams.get("status") ?? "";
+    const card     = searchParams.get("card") ?? "";
     const page     = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
     const limit    = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
 
@@ -24,14 +26,19 @@ export async function GET(req: NextRequest) {
     if (category && category !== "All") query.membershipCategory = category;
     if (status   && status   !== "All") query.status = status;
     if (search) {
+      const rx = { $regex: escapeRegex(search), $options: "i" };
       query.$or = [
-        { firstName:    { $regex: search, $options: "i" } },
-        { lastName:     { $regex: search, $options: "i" } },
-        { membershipNo: { $regex: search, $options: "i" } },
-        { businessName: { $regex: search, $options: "i" } },
-        { cnic:         { $regex: search, $options: "i" } },
+        { firstName:    rx },
+        { lastName:     rx },
+        { membershipNo: rx },
+        { businessName: rx },
+        { cnic:         rx },
       ];
     }
+    // Card filter: both sides uploaded, or at least one side missing.
+    const blank = { $in: ["", null] };
+    if (card === "uploaded") query.$and = [{ cardFront: { $nin: ["", null] } }, { cardBack: { $nin: ["", null] } }];
+    if (card === "missing")  query.$and = [{ $or: [{ cardFront: blank }, { cardBack: blank }] }];
 
     const total   = await Member.countDocuments(query);
     const members = await Member.find(query)
@@ -49,17 +56,18 @@ export async function GET(req: NextRequest) {
 
 // POST — create new member
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session.isLoggedIn) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     await connectDB();
     const body = await req.json();
     if (body.photoFrame) body.photoFrame = normalizeFrame(body.photoFrame);
+    body.membershipNo = formatMemberNo(String(body.membershipNo ?? ""));
+    if (!body.membershipNo) return NextResponse.json({ error: "Membership No is required." }, { status: 400 });
 
-    // Check duplicate membershipNo or CNIC; blank values are not identifiers.
+    // Check duplicate membershipNo (ignoring spacing/punctuation) or CNIC; blank values are not identifiers.
     const keys = [
-      body.membershipNo && { membershipNo: body.membershipNo },
+      cardNumberQuery(body.membershipNo) ?? { membershipNo: body.membershipNo },
       body.cnic && { cnic: body.cnic },
     ].filter(Boolean);
     const existing = keys.length && await Member.findOne({ $or: keys });
@@ -74,7 +82,7 @@ export async function POST(req: NextRequest) {
     revalidateMemberPages(String(member._id));
     return NextResponse.json({ member }, { status: 201 });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Server error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const { error, status } = memberSaveError(err);
+    return NextResponse.json({ error }, { status });
   }
 }

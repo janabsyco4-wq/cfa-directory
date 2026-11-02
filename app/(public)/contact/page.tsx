@@ -1,20 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight, Mail, Phone, Globe, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Mail, Phone, Globe, MapPin, ShieldCheck } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import { contact, officialPages, OFFICIAL_SITE } from "@/lib/site";
+import { officialPages } from "@/lib/site";
+import { getPublicContact } from "@/lib/organization";
 
 export const metadata: Metadata = {
   title: "Contact",
   description: "Contact the Chamber of Food and Agriculture Pakistan.",
 };
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const contact = await getPublicContact();
   const items = [
-    ...contact.emails.map((e) => ({ icon: Mail, label: "Email", value: e, href: `mailto:${e}`, external: false })),
     { icon: Phone, label: "Phone",    value: contact.phone.display, href: contact.phone.href, external: false },
+    ...(contact.mobile.display !== contact.phone.display
+      ? [{ icon: Phone, label: "Mobile", value: contact.mobile.display, href: contact.mobile.href, external: false }]
+      : []),
+    ...(contact.address
+      ? [{ icon: MapPin, label: "Address", value: contact.address, href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contact.address)}`, external: true }]
+      : []),
+    { icon: Globe, label: "Website",  value: contact.website.display, href: contact.website.href, external: true },
+    ...contact.emails.map((e) => ({ icon: Mail, label: "Email", value: e, href: `mailto:${e}`, external: false })),
     { icon: Globe, label: "Facebook", value: "facebook.com/pakistankisanboard", href: contact.facebook, external: true },
-    { icon: Globe, label: "Website",  value: "cfapak.org", href: OFFICIAL_SITE, external: true },
   ];
 
   return (
@@ -39,7 +47,7 @@ export default function ContactPage() {
                 </span>
                 <span className="min-w-0">
                   <span className="block text-xs font-bold uppercase tracking-[0.14em] text-muted">{it.label}</span>
-                  <span className="block mt-1 font-semibold text-ink break-all">{it.value}</span>
+                  <span className={`block mt-1 font-semibold text-ink ${it.icon === MapPin ? "break-words" : "break-all"}`}>{it.value}</span>
                 </span>
               </a>
             </li>
@@ -53,7 +61,7 @@ export default function ContactPage() {
             You can confirm an active CFA Pakistan membership online using the member’s CNIC.
           </p>
           <div className="mt-6 flex flex-col gap-3">
-            <Link href="/members/lookup" className="btn btn-gold">Verify a member</Link>
+            <Link href="/verify" className="btn btn-gold">Verify a member</Link>
             <a href={officialPages.contact} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-light">
               Contact page on cfapak.org <ArrowUpRight size={16} aria-hidden />
             </a>

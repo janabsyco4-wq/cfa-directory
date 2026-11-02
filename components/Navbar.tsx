@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Menu, X, ArrowRight } from "lucide-react";
+import { Menu, X, LogIn } from "lucide-react";
 import { navLinks } from "@/lib/site";
 
 function isActive(pathname: string, href: string) {
@@ -94,9 +94,9 @@ export default function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link href="/members" className="btn btn-primary hidden sm:inline-flex !min-h-0 !py-2.5">
-              Explore Members
-              <ArrowRight size={15} aria-hidden />
+            <Link href="/admin/login" className="btn btn-primary hidden sm:inline-flex lg:hidden xl:inline-flex !min-h-0 !py-2.5">
+              <LogIn size={15} aria-hidden />
+              Admin login
             </Link>
             <button
               type="button"
@@ -144,12 +144,12 @@ export default function Navbar() {
               })}
             </ul>
             <Link
-              href="/members"
+              href="/admin/login"
               onClick={() => setOpen(false)}
               className="btn btn-primary w-full mt-3 sm:hidden"
             >
-              Explore Members
-              <ArrowRight size={15} aria-hidden />
+              <LogIn size={15} aria-hidden />
+              Admin login
             </Link>
           </nav>
         </div>

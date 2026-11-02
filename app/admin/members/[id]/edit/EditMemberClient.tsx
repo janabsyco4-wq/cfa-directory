@@ -14,7 +14,7 @@ export default function EditMemberClient({ memberId }: { memberId: string }) {
       .then((r) => r.json())
       .then((json) => {
         if (json.member) {
-          // Normalise joinedDate to yyyy-mm-dd for the date input
+          // Normalise dates to yyyy-mm-dd for the date inputs
           const m = json.member;
           setData({
             ...m,
@@ -22,6 +22,7 @@ export default function EditMemberClient({ memberId }: { memberId: string }) {
             joinedDate: m.joinedDate
               ? new Date(m.joinedDate).toISOString().split("T")[0]
               : new Date().toISOString().split("T")[0],
+            expiryDate: m.expiryDate ? new Date(m.expiryDate).toISOString().split("T")[0] : "",
           });
         } else {
           setError("Member not found.");

@@ -1,18 +1,26 @@
 "use client";
 
-import { useState, useRef, ChangeEvent } from "react";
+import { useEffect, useState, useRef, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, Loader2, Save, ArrowLeft, Camera, Trash2 } from "lucide-react";
 import PhotoFramer from "@/components/admin/PhotoFramer";
+import ImageUploadField from "@/components/admin/ImageUploadField";
+import { Field, inputCls } from "@/components/admin/FormField";
 import { DEFAULT_FRAME, normalizeFrame, type PhotoFrame } from "@/lib/photoFrame";
+import { uploadImage } from "@/lib/uploadImage";
+import { MEMBER_STATUSES } from "@/lib/memberStatus";
+import { formatMemberNo, MEMBER_NO_EXAMPLE } from "@/lib/memberNumber";
 
 export type MemberFormData = {
   membershipNo: string;
   firstName: string;
   lastName: string;
   fatherName: string;
+  designation: string;
+  department: string;
   cnic: string;
   phone: string;
+  whatsapp: string;
   email: string;
   ntn: string;
   address: string;
@@ -23,24 +31,32 @@ export type MemberFormData = {
   fee: number | string;
   status: string;
   joinedDate: string;
+  expiryDate: string;
   photo: string;
   photoFrame?: PhotoFrame;
+  cardFront: string;
+  cardBack: string;
 };
 
 const EMPTY: MemberFormData = {
-  membershipNo: "", firstName: "", lastName: "", fatherName: "",
-  cnic: "", phone: "", email: "", ntn: "", address: "", district: "",
+  membershipNo: "", firstName: "", lastName: "", fatherName: "", designation: "", department: "",
+  cnic: "", phone: "", whatsapp: "", email: "", ntn: "", address: "", district: "",
   businessName: "", businessType: "", membershipCategory: "Corporate",
-  fee: 30000, status: "Active", joinedDate: new Date().toISOString().split("T")[0],
-  photo: "",
+  fee: 30000, status: "Active", joinedDate: new Date().toISOString().split("T")[0], expiryDate: "",
+  photo: "", cardFront: "", cardBack: "",
 };
 
 const CATEGORIES = ["Corporate","Executive","Associate","Overseas","Women","Student","Honorary Member"];
-const STATUSES   = ["Active","Inactive","Pending"];
 const FEES: Record<string, number> = {
   Corporate: 30000, Executive: 5000, Associate: 2000,
   Overseas: 100, Women: 3000, Student: 0, "Honorary Member": 0,
 };
+
+// Organization setup decides which private details are mandatory.
+type Rules = { requireCnic: boolean; requireMobile: boolean; requireWhatsapp: boolean; requireAddress: boolean };
+const DEFAULT_RULES: Rules = { requireCnic: true, requireMobile: true, requireWhatsapp: false, requireAddress: false };
+
+const CNIC_RE = /^\d{5}-\d{7}-\d$/;
 
 interface Props {
   initialData?: Partial<MemberFormData>;
@@ -48,35 +64,30 @@ interface Props {
   mode: "new" | "edit";
 }
 
-function Field({
-  label, required, children,
-}: {
-  label: string; required?: boolean; children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="block text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1.5">
-        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-const inputCls =
-  "w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-white text-base sm:text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition";
-
 export default function MemberForm({ initialData, memberId, mode }: Props) {
   const router  = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm]           = useState<MemberFormData>({ ...EMPTY, ...initialData });
+  const [rules, setRules]         = useState<Rules>(DEFAULT_RULES);
   const [saving, setSaving]       = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError]         = useState("");
   const [success, setSuccess]     = useState("");
   const [preview, setPreview]     = useState<string>(initialData?.photo ?? "");
   const [frame, setFrame]         = useState<PhotoFrame>(() => normalizeFrame(initialData?.photoFrame));
+
+  useEffect(() => {
+    fetch("/api/admin/organization")
+      .then((r) => r.json())
+      .then((json) => json.settings && setRules({
+        requireCnic: json.settings.requireCnic,
+        requireMobile: json.settings.requireMobile,
+        requireWhatsapp: json.settings.requireWhatsapp,
+        requireAddress: json.settings.requireAddress,
+      }))
+      .catch(() => undefined);
+  }, []);
 
   function formatCnic(raw: string) {
     // Strip everything except digits, max 13 digits
@@ -117,8 +128,8 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
     set("cnic", formatCnic(e.target.value));
   }
 
-  function handlePhone(e: ChangeEvent<HTMLInputElement>) {
-    set("phone", formatPhone(e.target.value));
+  function handlePhone(field: "phone" | "whatsapp") {
+    return (e: ChangeEvent<HTMLInputElement>) => set(field, formatPhone(e.target.value));
   }
 
   async function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
@@ -135,30 +146,9 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
       objectUrl = URL.createObjectURL(file);
       setPreview(objectUrl);
       setFrame(DEFAULT_FRAME);
-
-      const authorization = await fetch("/api/admin/upload", { method: "POST" });
-      const signed = await authorization.json().catch(() => null);
-      if (!authorization.ok || !signed?.signature) {
-        throw new Error(signed?.error ?? "Could not authorize photo upload. Please sign in and try again.");
-      }
-
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("api_key", signed.apiKey);
-      fd.append("signature", signed.signature);
-      for (const [key, value] of Object.entries(signed.params)) {
-        fd.append(key, String(value));
-      }
-      // Direct upload avoids the hosting platform's request-body limit.
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloudName)}/image/upload`, {
-        method: "POST", body: fd,
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.secure_url) {
-        throw new Error(json?.error?.message ?? "Photo upload failed. Please try again.");
-      }
-      set("photo", json.secure_url);
-      setPreview(json.secure_url);
+      const url = await uploadImage(file, "photo");
+      set("photo", url);
+      setPreview(url);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Photo upload failed. Please try again.");
       setPreview(form.photo);
@@ -169,13 +159,36 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
     }
   }
 
+  function validate(): string | null {
+    const cnic = form.cnic.trim();
+    if (rules.requireCnic && !cnic) return "CNIC is required.";
+    // Older records may hold CNICs in other formats; only check the format when it is entered or changed.
+    if (cnic && cnic !== (initialData?.cnic ?? "") && !CNIC_RE.test(cnic)) {
+      return "CNIC must be in the format XXXXX-XXXXXXX-X (e.g. 35202-1234567-1).";
+    }
+    if (rules.requireMobile && !form.phone.trim()) return "Mobile number is required.";
+    if (rules.requireWhatsapp && !form.whatsapp.trim()) return "WhatsApp number is required.";
+    if (rules.requireAddress && !form.address.trim()) return "Address is required.";
+    if (form.expiryDate && form.expiryDate < form.joinedDate) return "Expiry date cannot be before joining date.";
+    return null;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true); setError(""); setSuccess("");
+    setError(""); setSuccess("");
 
+    const problem = validate();
+    if (problem) {
+      setError(problem);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    setSaving(true);
     const payload = {
       ...form,
       fee: Number(form.fee),
+      expiryDate: form.expiryDate || null,
       photoFrame: form.photo ? frame : undefined,
     };
 
@@ -250,7 +263,7 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
 
       {/* Feedback */}
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-3 text-sm mb-6">
+        <div role="alert" className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-3 text-sm mb-6">
           {error}
         </div>
       )}
@@ -324,9 +337,10 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
           {/* Membership fields */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
             <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Membership</p>
-            <Field label="Membership No" required>
-              <input value={form.membershipNo} onChange={(e) => set("membershipNo", e.target.value)}
-                placeholder="CFA-2024-001" required className={inputCls} />
+            <Field label="Membership No" required hint="Letters and numbers in groups of four, as printed on the card.">
+              <input value={form.membershipNo} onChange={(e) => set("membershipNo", formatMemberNo(e.target.value))}
+                placeholder={MEMBER_NO_EXAMPLE} required autoComplete="off" spellCheck={false}
+                className={`${inputCls} font-mono tracking-wide`} />
             </Field>
             <Field label="Category" required>
               <select value={form.membershipCategory} onChange={(e) => set("membershipCategory", e.target.value)} className={inputCls}>
@@ -339,17 +353,23 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
             </Field>
             <Field label="Status" required>
               <select value={form.status} onChange={(e) => set("status", e.target.value)} className={inputCls}>
-                {STATUSES.map((s) => <option key={s}>{s}</option>)}
+                {MEMBER_STATUSES.map((s) => <option key={s}>{s}</option>)}
               </select>
             </Field>
-            <Field label="Joined Date" required>
-              <input type="date" value={form.joinedDate} onChange={(e) => set("joinedDate", e.target.value)}
-                required className={inputCls} />
-            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Joined Date" required>
+                <input type="date" value={form.joinedDate} onChange={(e) => set("joinedDate", e.target.value)}
+                  required className={inputCls} />
+              </Field>
+              <Field label="Expiry Date">
+                <input type="date" value={form.expiryDate} min={form.joinedDate} onChange={(e) => set("expiryDate", e.target.value)}
+                  className={inputCls} />
+              </Field>
+            </div>
           </div>
         </div>
 
-        {/* Right — personal + business */}
+        {/* Right — personal + business + card */}
         <div className="lg:col-span-2 space-y-5">
           {/* Personal info */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
@@ -359,40 +379,32 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
                 <input value={form.firstName} onChange={(e) => set("firstName", e.target.value)}
                   placeholder="Ahmed" required className={inputCls} />
               </Field>
-              <Field label="Last Name" required>
+              <Field label="Last Name">
                 <input value={form.lastName} onChange={(e) => set("lastName", e.target.value)}
-                  placeholder="Khan" required className={inputCls} />
+                  placeholder="Khan" className={inputCls} />
               </Field>
               <Field label="Father's Name">
                 <input value={form.fatherName} onChange={(e) => set("fatherName", e.target.value)}
                   placeholder="Muhammad Khan" className={inputCls} />
               </Field>
-              <Field label="CNIC" required={mode === "new"}>
-                <input value={form.cnic} onChange={handleCnic}
-                  placeholder="42101-1234567-1" required={mode === "new"} maxLength={15} className={inputCls} />
-              </Field>
-              <Field label="Phone">
-                <input value={form.phone} onChange={handlePhone}
-                  placeholder="+92 300 1234567" maxLength={16} className={inputCls} />
-              </Field>
-              <Field label="Email">
-                <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
-                  placeholder="member@example.com" className={inputCls} />
-              </Field>
-              <Field label="NTN">
-                <input value={form.ntn} onChange={(e) => set("ntn", e.target.value)}
-                  placeholder="1234567-8" className={inputCls} />
+              <Field label="Designation">
+                <input value={form.designation} onChange={(e) => set("designation", e.target.value)}
+                  placeholder="Director" className={inputCls} />
               </Field>
             </div>
           </div>
 
           {/* Business + Location */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-            <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-4">Business & Location</p>
+            <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-4">Organization & Location</p>
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Business Name">
+              <Field label="Organization Name">
                 <input value={form.businessName} onChange={(e) => set("businessName", e.target.value)}
                   placeholder="AgroFarm Pakistan Pvt Ltd" className={inputCls} />
+              </Field>
+              <Field label="Department">
+                <input value={form.department} onChange={(e) => set("department", e.target.value)}
+                  placeholder="Optional" className={inputCls} />
               </Field>
               <Field label="Business Type">
                 <input value={form.businessType} onChange={(e) => set("businessType", e.target.value)}
@@ -402,13 +414,55 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
                 <input value={form.district} onChange={(e) => set("district", e.target.value)}
                   placeholder="Karachi" className={inputCls} />
               </Field>
+            </div>
+          </div>
+
+          {/* Private identification */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Private Identification</p>
+            <p className="text-gray-500 text-xs mt-1 mb-4">Never shown on the public directory or member profile.</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label="CNIC" required={rules.requireCnic}>
+                <input value={form.cnic} onChange={handleCnic} inputMode="numeric" autoComplete="off"
+                  placeholder="42101-1234567-1" maxLength={15} className={inputCls} />
+              </Field>
+              <Field label="NTN">
+                <input value={form.ntn} onChange={(e) => set("ntn", e.target.value)}
+                  placeholder="1234567-8" className={inputCls} />
+              </Field>
+              <Field label="Mobile" required={rules.requireMobile}>
+                <input value={form.phone} onChange={handlePhone("phone")} inputMode="tel" autoComplete="off"
+                  placeholder="+92 300 1234567" maxLength={16} className={inputCls} />
+              </Field>
+              <Field label="WhatsApp" required={rules.requireWhatsapp}>
+                <input value={form.whatsapp} onChange={handlePhone("whatsapp")} inputMode="tel" autoComplete="off"
+                  placeholder="+92 300 1234567" maxLength={16} className={inputCls} />
+              </Field>
               <div className="sm:col-span-2">
-                <Field label="Address">
+                <Field label="Email">
+                  <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
+                    placeholder="member@example.com" className={inputCls} />
+                </Field>
+              </div>
+              <div className="sm:col-span-2">
+                <Field label="Address" required={rules.requireAddress}>
                   <textarea value={form.address} onChange={(e) => set("address", e.target.value)}
-                    placeholder="Plot 45, SITE Area, Karachi" rows={3}
+                    placeholder="House, street, area, city" rows={3}
                     className={`${inputCls} resize-none`} />
                 </Field>
               </div>
+            </div>
+          </div>
+
+          {/* Membership card — uploaded, not generated */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Membership Card</p>
+            <p className="text-gray-500 text-xs mt-1 mb-4">Upload the finished card artwork. It is stored as-is for download and printing.</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <ImageUploadField label="Card front" kind="card" aspect="aspect-[1.586]"
+                value={form.cardFront} onChange={(url) => set("cardFront", url)} onError={setError} />
+              <ImageUploadField label="Card back" kind="card" aspect="aspect-[1.586]"
+                value={form.cardBack} onChange={(url) => set("cardBack", url)} onError={setError} />
             </div>
           </div>
         </div>

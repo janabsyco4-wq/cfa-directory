@@ -5,15 +5,16 @@ import Link from "next/link";
 import {
   Search, X, UserPlus, Pencil, Trash2,
   ChevronLeft, ChevronRight, SlidersHorizontal,
-  AlertTriangle, Loader2,
+  AlertTriangle, Loader2, CreditCard,
 } from "lucide-react";
 import CategoryBadge from "@/components/CategoryBadge";
 import MemberAvatar from "@/components/admin/MemberAvatar";
-import { MembershipCategory } from "@/models/Member";
+import type { MembershipCategory } from "@/models/Member";
 import type { PhotoFrame } from "@/lib/photoFrame";
+import { MEMBER_STATUSES } from "@/lib/memberStatus";
 
 const CATEGORIES = ["All","Corporate","Executive","Associate","Overseas","Women","Student","Honorary Member"];
-const STATUSES   = ["All","Active","Inactive","Pending"];
+const STATUSES   = ["All", ...MEMBER_STATUSES];
 
 interface Member {
   _id: string;
@@ -28,6 +29,8 @@ interface Member {
   photoFrame?: PhotoFrame;
   joinedDate: string;
   phone: string;
+  cardFront?: string;
+  cardBack?: string;
   email: string;
 }
 
@@ -41,17 +44,34 @@ interface ApiResponse {
 function StatusPill({ status }: { status: string }) {
   const s: Record<string, string> = {
     Active:   "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    Expired:  "bg-orange-500/10 text-orange-400 border-orange-500/20",
     Inactive: "bg-red-500/10    text-red-400    border-red-500/20",
     Pending:  "bg-amber-500/10  text-amber-400  border-amber-500/20",
   };
   const dot: Record<string, string> = {
-    Active: "bg-emerald-400", Inactive: "bg-red-400", Pending: "bg-amber-400",
+    Active: "bg-emerald-400", Expired: "bg-orange-400", Inactive: "bg-red-400", Pending: "bg-amber-400",
   };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border text-xs font-semibold ${s[status] ?? "bg-gray-800 text-gray-400 border-gray-700"}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${dot[status] ?? "bg-gray-500"}`} />
       {status}
     </span>
+  );
+}
+
+function CardStatus({ member }: { member: Member }) {
+  const sides = Number(!!member.cardFront) + Number(!!member.cardBack);
+  return (
+    <Link
+      href={`/admin/cards?member=${member._id}`}
+      aria-label={`Membership card for ${member.firstName} ${member.lastName}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-xs font-semibold whitespace-nowrap transition hover:brightness-125 ${
+        sides === 2 ? "bg-sky-500/10 text-sky-300 border-sky-500/20" : "bg-gray-800 text-gray-500 border-gray-700"
+      }`}
+    >
+      <CreditCard size={12} aria-hidden />
+      {sides === 2 ? "Uploaded" : sides === 1 ? "1 of 2" : "Missing"}
+    </Link>
   );
 }
 
@@ -176,6 +196,7 @@ export default function AdminMembersPage() {
                 <th className="text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">Category</th>
                 <th className="hidden xl:table-cell text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">District</th>
                 <th className="text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">Status</th>
+                <th className="text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">Card</th>
                 <th className="hidden xl:table-cell text-left text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-3.5">Joined</th>
                 <th className="px-4 py-3.5"><span className="sr-only">Actions</span></th>
               </tr>
@@ -184,7 +205,7 @@ export default function AdminMembersPage() {
               {loading ? (
                 [...Array(6)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(7)].map((_, j) => (
+                    {[...Array(8)].map((_, j) => (
                       <td key={j} className="px-4 py-4">
                         <div className="h-4 bg-gray-800 rounded animate-pulse" />
                       </td>
@@ -193,7 +214,7 @@ export default function AdminMembersPage() {
                 ))
               ) : data?.members.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-gray-600 py-16 text-sm">
+                  <td colSpan={8} className="text-center text-gray-600 py-16 text-sm">
                     No members found.
                   </td>
                 </tr>
@@ -213,6 +234,7 @@ export default function AdminMembersPage() {
                     <td className="px-4 py-3.5"><CategoryBadge category={m.membershipCategory} /></td>
                     <td className="hidden xl:table-cell px-4 py-3.5 text-gray-400 text-xs">{m.district}</td>
                     <td className="px-4 py-3.5"><StatusPill status={m.status} /></td>
+                    <td className="px-4 py-3.5"><CardStatus member={m} /></td>
                     <td className="hidden xl:table-cell px-4 py-3.5 text-gray-500 text-xs whitespace-nowrap">
                       {new Date(m.joinedDate).toLocaleDateString("en-PK", { year: "numeric", month: "short", day: "numeric" })}
                     </td>
@@ -267,6 +289,7 @@ export default function AdminMembersPage() {
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <CategoryBadge category={m.membershipCategory} size="sm" />
                     <StatusPill status={m.status} />
+                    <span className="relative z-10"><CardStatus member={m} /></span>
                   </div>
                 </div>
                 <div className="relative z-10 flex items-center">

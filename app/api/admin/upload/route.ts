@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
-import { isCloudinaryConfigured, getPhotoUploadSignature } from "@/lib/cloudinary";
-import { getSession } from "@/lib/session";
+import { NextRequest, NextResponse } from "next/server";
+import { isCloudinaryConfigured, getPhotoUploadSignature, type UploadKind } from "@/lib/cloudinary";
+import { requireAdmin } from "@/lib/admin";
 
-export async function POST() {
-  const session = await getSession();
-  if (!session.isLoggedIn) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const KINDS: UploadKind[] = ["photo", "card", "brand"];
+
+export async function POST(req: NextRequest) {
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (!isCloudinaryConfigured()) {
     return NextResponse.json(
@@ -13,8 +14,11 @@ export async function POST() {
     );
   }
 
+  const body = await req.json().catch(() => ({}));
+  const kind: UploadKind = KINDS.includes(body?.kind) ? body.kind : "photo";
+
   try {
-    return NextResponse.json(getPhotoUploadSignature(), {
+    return NextResponse.json(getPhotoUploadSignature(kind), {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (err) {

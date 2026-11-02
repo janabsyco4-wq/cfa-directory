@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
+import { requireAdmin } from "@/lib/admin";
 
 // Admin-only seed endpoint
 export async function POST(req: Request) {
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     // Simple authentication check
     const { password } = await req.json();

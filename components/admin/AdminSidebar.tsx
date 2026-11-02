@@ -6,13 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, UserPlus, LogOut,
-  Menu, X, ExternalLink,
+  Menu, X, ExternalLink, CreditCard, Building2, UserCog,
 } from "lucide-react";
 
 const navItems = [
-  { href: "/admin",             label: "Dashboard",  icon: LayoutDashboard },
-  { href: "/admin/members",     label: "Members",    icon: Users           },
-  { href: "/admin/members/new", label: "Add Member", icon: UserPlus        },
+  { href: "/admin",              label: "Dashboard",          icon: LayoutDashboard },
+  { href: "/admin/members",      label: "Members",            icon: Users           },
+  { href: "/admin/members/new",  label: "Add Member",         icon: UserPlus        },
+  { href: "/admin/cards",        label: "Membership Cards",   icon: CreditCard      },
+  { href: "/admin/organization", label: "Organization Setup", icon: Building2       },
+  { href: "/admin/profile",      label: "Profile & Security", icon: UserCog         },
 ];
 
 export default function AdminSidebar() {

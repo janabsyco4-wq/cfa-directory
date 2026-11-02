@@ -6,7 +6,7 @@ import { PAGE_SIZE, type DirectoryPage, type PublicMember, type PublicProfile, t
 import { normalizeFrame } from "@/lib/photoFrame";
 
 export const PUBLIC_LIST_FIELDS = "membershipNo firstName lastName membershipCategory photo photoFrame businessName district";
-const PUBLIC_PROFILE_FIELDS = `${PUBLIC_LIST_FIELDS} businessType joinedDate`;
+const PUBLIC_PROFILE_FIELDS = `${PUBLIC_LIST_FIELDS} businessType joinedDate designation department`;
 
 // _id tiebreak keeps paging stable and follows insertion order when joinedDate ties (bulk imports)
 const SORTS: Record<SortKey, Record<string, 1 | -1>> = {
@@ -43,10 +43,28 @@ function toPublic(m: any): PublicMember {
   };
 }
 
+/** Turns a failed member save into a message an admin can act on. */
+export function memberSaveError(err: unknown): { error: string; status: number } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const e = err as any;
+  if (e?.code === 11000) {
+    const field = Object.keys(e.keyPattern ?? e.keyValue ?? {})[0];
+    if (field === "cnic") {
+      return e.keyValue?.cnic
+        ? { error: "Another member already has this CNIC.", status: 409 }
+        : { error: "Another member is already saved without a CNIC. Enter this member's CNIC to save.", status: 409 };
+    }
+    return { error: "Another member already has this Membership No.", status: 409 };
+  }
+  if (e?.name === "ValidationError") return { error: "Some fields are invalid. Check the form and try again.", status: 400 };
+  return { error: "Server error", status: 500 };
+}
+
 export function revalidateMemberPages(id: string) {
   revalidatePath("/");
   revalidatePath("/members");
   revalidatePath(`/members/${id}`);
+  revalidatePath(`/verify/${id}`);
   revalidatePath("/api/stats");
 }
 
@@ -102,6 +120,8 @@ export async function getPublicProfile(id: string): Promise<PublicProfile | null
   return {
     ...toPublic(m),
     businessType: m.businessType || undefined,
+    designation: m.designation || undefined,
+    department: m.department || undefined,
     joinedDate: m.joinedDate ? new Date(m.joinedDate).toISOString() : undefined,
   };
 }
@@ -121,6 +141,18 @@ export async function getDirectoryStats() {
     organizations: organizations.length,
     categories: categories.length,
   };
+}
+
+/** Active members per district, largest first. */
+export async function getDistrictCounts(limit = 8): Promise<{ district: string; count: number }[]> {
+  await connectDB();
+  const rows = await Member.aggregate<{ _id: string; count: number }>([
+    { $match: { status: "Active", district: { $nin: [null, ""] } } },
+    { $group: { _id: "$district", count: { $sum: 1 } } },
+    { $sort: { count: -1, _id: 1 } },
+    { $limit: limit },
+  ]);
+  return rows.map((r) => ({ district: r._id, count: r.count }));
 }
 
 export async function getFeaturedMembers(limit = 6) {

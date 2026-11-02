@@ -32,7 +32,7 @@ export default async function MembersPage() {
               </p>
             </div>
             <div className="animate-rise flex items-center justify-between sm:justify-start gap-3" style={{ animationDelay: "120ms" }}>
-              <Link href="/members/lookup" className="btn btn-outline whitespace-nowrap !min-h-10 !py-2 !px-3.5 sm:!min-h-11 sm:!py-2.5 sm:!px-5">
+              <Link href="/verify" className="btn btn-outline whitespace-nowrap !min-h-10 !py-2 !px-3.5 sm:!min-h-11 sm:!py-2.5 sm:!px-5">
                 <ShieldCheck size={16} aria-hidden /> Verify a member
               </Link>
             </div>

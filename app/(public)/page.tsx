@@ -1,11 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import Form from "next/form";
-import { ArrowRight, ArrowUpRight, Search, ShieldCheck } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BadgeCheck, Handshake, Landmark, LockKeyhole, MapPin, Search, ShieldCheck } from "lucide-react";
 import MemberCard from "@/components/MemberCard";
 import { CATEGORIES } from "@/lib/directory";
-import { getFeaturedMembers } from "@/lib/members";
-import { about, contact, FOUNDED, leadership, officialPages } from "@/lib/site";
+import { getDirectoryStats, getDistrictCounts, getFeaturedMembers } from "@/lib/members";
+import { about, FOUNDED, leadership, officialPages, TAGLINE } from "@/lib/site";
+import { frameStyle } from "@/lib/photoFrame";
+import { getPublicContact } from "@/lib/organization";
 
 export const revalidate = 300;
 
@@ -18,11 +20,41 @@ export const metadata = {
 
 async function loadHomeData() {
   try {
-    return { featured: await getFeaturedMembers(4) };
-  } catch {
-    return { featured: [] };
+    const [featured, stats, districts] = await Promise.all([
+      getFeaturedMembers(4),
+      getDirectoryStats(),
+      getDistrictCounts(8),
+    ]);
+    return { featured, stats, districts };
+  } catch (err) {
+    // At runtime, failing the regeneration keeps the last good page (with live figures) cached.
+    // Only a build without database access renders the page without them.
+    if (process.env.NEXT_PHASE !== "phase-production-build") throw err;
+    return { featured: [], stats: null, districts: [] };
   }
 }
+
+function heroStats(stats: { members: number; districts: number }) {
+  return [
+    { value: `${stats.members.toLocaleString("en-US")}+`,   label: "Active Members" },
+    { value: `${stats.districts.toLocaleString("en-US")}+`, label: "Districts" },
+    { value: CATEGORIES.length,                             label: "Membership Tiers" },
+    { value: FOUNDED,                                       label: "Year Founded" },
+  ];
+}
+
+// Promises the portal itself keeps, as described on the official member portal.
+const chamberPoints = [
+  { icon: Handshake,   title: "Trade & collaboration", text: "Members carry a card that opens chamber meetings, programmes, and introductions." },
+  { icon: ShieldCheck, title: "A clear status",        text: "Scanning a card shows Active, Expired, or Inactive from the live record." },
+  { icon: LockKeyhole, title: "Private by design",     text: "Phone numbers and email addresses stay in the admin registry." },
+];
+
+const heroBadges = [
+  { icon: Landmark,   label: "Govt. Aligned" },
+  { icon: MapPin,     label: "Nationwide Network" },
+  { icon: BadgeCheck, label: "Verified Members" },
+];
 
 const showcase = [
   {
@@ -52,33 +84,30 @@ const showcase = [
 ];
 
 export default async function HomePage() {
-  const { featured } = await loadHomeData();
+  const { featured, stats, districts } = await loadHomeData();
+  const contact = await getPublicContact();
 
-  const statItems = [
-    { value: "3,000+", label: "CFA members" },
-    { value: "30+", label: "Districts represented" },
-    { value: CATEGORIES.length, label: "Membership categories" },
-  ];
+  const avatars = featured.filter((m) => m.photo).slice(0, 5);
 
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Chamber of Food and Agriculture Pakistan",
+    name: contact.name,
     alternateName: "CFA Pakistan",
-    url: "https://cfapak.org",
+    url: contact.website.href,
     logo: "https://cfa-directory.vercel.app/logo.avif",
     description: about.platform,
     email: contact.emails[0],
     telephone: contact.phone.display,
     foundingDate: FOUNDED,
     nonprofitStatus: "Nonprofit",
-    address: { "@type": "PostalAddress", addressCountry: "PK" },
+    address: { "@type": "PostalAddress", addressCountry: "PK", ...(contact.address && { streetAddress: contact.address }) },
     sameAs: [contact.facebook],
   };
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema).replace(/</g, "\\u003c") }} />
 
       {/* Hero */}
       <section className="relative isolate overflow-hidden bg-forest-deep">
@@ -92,20 +121,20 @@ export default async function HomePage() {
         />
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-forest-deep/95 via-forest-deep/85 to-forest/55" aria-hidden />
 
-        <div className="container-site py-12 sm:py-20 lg:py-24">
+        <div className="container-site py-12 sm:py-20 lg:py-24 grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] gap-10 xl:gap-16 items-center">
           <div className="max-w-2xl">
             <p className="animate-rise text-gold text-xs font-bold tracking-[0.18em] uppercase">
-              Chamber of Food &amp; Agriculture Pakistan
+              Official Member Portal
             </p>
             <h1
               className="animate-rise mt-4 text-[2rem] leading-[1.12] sm:text-5xl lg:text-[3.4rem] font-extrabold text-white"
               style={{ animationDelay: "60ms" }}
             >
-              Connecting Pakistan’s Agriculture &amp; Food Community
+              {TAGLINE}
             </h1>
             <p className="animate-rise mt-5 text-white/80 text-base sm:text-lg leading-relaxed" style={{ animationDelay: "120ms" }}>
-              Discover members, explore professional connections, and learn about the people and organizations
-              contributing to Pakistan’s food and agriculture sector.
+              Pakistan’s Chamber of Food and Agriculture unites farmers, agribusinesses, exporters, and policymakers
+              to build a prosperous agricultural future.
             </p>
 
             <Form
@@ -131,25 +160,122 @@ export default async function HomePage() {
 
             <div className="animate-rise mt-6 flex flex-col sm:flex-row gap-3" style={{ animationDelay: "240ms" }}>
               <Link href="/members" className="btn bg-white text-forest-deep hover:bg-canvas">
-                Explore Member Directory <ArrowRight size={16} aria-hidden />
+                Browse Member Directory <ArrowRight size={16} aria-hidden />
               </Link>
-              <Link href="/about" className="btn btn-ghost-light">Discover CFA Pakistan</Link>
+              <Link href="/verify" className="btn btn-ghost-light">
+                <ShieldCheck size={16} aria-hidden /> Verify Member
+              </Link>
             </div>
+
+            <ul className="animate-rise mt-7 flex flex-wrap gap-x-5 gap-y-2.5" style={{ animationDelay: "300ms" }} aria-label="Why CFA">
+              {heroBadges.map(({ icon: Icon, label }) => (
+                <li key={label} className="inline-flex items-center gap-2 text-sm font-semibold text-white/90">
+                  <span className="w-7 h-7 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center">
+                    <Icon size={14} className="text-gold" aria-hidden />
+                  </span>
+                  {label}
+                </li>
+              ))}
+            </ul>
           </div>
+
+          {stats && (
+            <aside
+              aria-label={`${contact.name} at a glance`}
+              className="animate-rise w-full max-w-md lg:max-w-none rounded-xl border border-white/15 bg-white/10 backdrop-blur-md p-4 sm:p-6 text-white shadow-2xl"
+              style={{ animationDelay: "200ms" }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-11 h-11 sm:w-12 sm:h-12 rounded-md bg-white p-1 flex-shrink-0">
+                  <Image src={contact.logo} alt="" width={48} height={48} className="w-full h-full object-contain" />
+                </span>
+                <span className="min-w-0 leading-tight">
+                  <span className="block font-heading font-bold text-[15px] sm:text-base">{contact.name}</span>
+                  <span className="block mt-0.5 text-[11px] font-semibold tracking-[0.18em] uppercase text-gold">CFAP</span>
+                </span>
+              </div>
+              <dl className="mt-4 sm:mt-6 grid grid-cols-2 gap-px rounded-lg overflow-hidden bg-white/15">
+                {heroStats(stats).map((s) => (
+                  <div key={s.label} className="flex flex-col-reverse bg-forest-deep/60 px-3.5 py-3 sm:px-4 sm:py-4">
+                    <dt className="mt-1 text-[11px] sm:text-xs text-white/65">{s.label}</dt>
+                    <dd className="font-heading text-xl sm:text-2xl font-extrabold tabular-nums">{s.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              {avatars.length > 0 && (
+                <div className="mt-4 sm:mt-6 flex items-center gap-3">
+                  <div className="flex -space-x-2.5">
+                    {avatars.map((m) => (
+                      <span key={m._id} className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-forest-deep bg-white">
+                        <Image src={m.photo!} alt="" fill sizes="36px" className="object-cover" style={frameStyle(m.photoFrame)} />
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-sm font-semibold">{stats.members.toLocaleString("en-US")}+ Members</p>
+                </div>
+              )}
+            </aside>
+          )}
         </div>
       </section>
 
-      <section aria-label="CFA network at a glance" className="bg-white border-b border-line">
-        <div className="container-site">
-          <dl className="grid grid-cols-3 divide-x divide-line">
-            {statItems.map((stat) => (
-              <div key={stat.label} className="py-6 sm:py-9 px-2 sm:px-6 text-center">
-                <dd className="font-heading text-[1.65rem] leading-none sm:text-4xl font-extrabold text-forest">{stat.value.toLocaleString()}</dd>
-                <dt className="mt-2 text-[11px] leading-snug sm:text-sm text-muted font-medium">{stat.label}</dt>
-              </div>
+      {districts.length > 0 && (
+        <section aria-labelledby="districts-heading" className="container-site pt-8 sm:pt-12">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+            <div>
+              <h2 id="districts-heading" className="text-xl sm:text-2xl font-extrabold text-ink">Members Across Pakistan</h2>
+              {stats && (
+                <p className="mt-1 text-sm text-muted">
+                  {stats.members.toLocaleString("en-US")} active members in {stats.districts.toLocaleString("en-US")} districts
+                </p>
+              )}
+            </div>
+            <Link href="/members" className="inline-flex items-center gap-1.5 text-sm font-semibold text-forest hover:text-forest-deep">
+              All districts <ArrowRight size={15} aria-hidden />
+            </Link>
+          </div>
+          <ul className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {districts.map(({ district, count }) => (
+              <li key={district}>
+                <Link
+                  href={`/members?district=${encodeURIComponent(district)}`}
+                  className="group flex min-h-16 items-center gap-3 rounded-lg border border-line bg-white px-4 py-3 transition-colors hover:border-forest/40"
+                >
+                  <MapPin size={16} className="shrink-0 text-gold" aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-ink group-hover:text-forest">{district}</span>
+                    <span className="block text-xs text-muted tabular-nums">
+                      {count.toLocaleString("en-US")} {count === 1 ? "member" : "members"}
+                    </span>
+                  </span>
+                </Link>
+              </li>
             ))}
-          </dl>
+          </ul>
+        </section>
+      )}
+
+      <section aria-labelledby="chamber-heading" className="container-site pt-12 sm:pt-20">
+        <div className="max-w-2xl">
+          <p className="eyebrow">The chamber</p>
+          <h2 id="chamber-heading" className="mt-3 text-2xl sm:text-3xl font-extrabold text-ink leading-tight">
+            A professional home for food and agriculture membership
+          </h2>
+          <p className="mt-3 text-muted leading-relaxed">
+            Private administration, printed cards, and a public verification page that shows only what a card is meant to prove.
+          </p>
         </div>
+        <ul className="mt-6 grid sm:grid-cols-3 gap-3 sm:gap-4">
+          {chamberPoints.map(({ icon: Icon, title, text }) => (
+            <li key={title} className="rounded-lg border border-line bg-white p-5">
+              <span className="w-10 h-10 rounded-md bg-forest/5 border border-forest/15 flex items-center justify-center">
+                <Icon size={18} className="text-forest" aria-hidden />
+              </span>
+              <h3 className="mt-4 font-bold text-ink">{title}</h3>
+              <p className="mt-1.5 text-sm text-muted leading-relaxed">{text}</p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section aria-labelledby="membership-categories-heading" className="container-site pt-8 sm:pt-12">
@@ -313,13 +439,16 @@ export default async function HomePage() {
               <ShieldCheck size={22} className="text-forest" aria-hidden />
             </span>
             <div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-ink">Need to confirm a membership?</h2>
-              <p className="mt-1.5 text-muted">Verify a CFA Pakistan member using their CNIC.</p>
+              <p className="eyebrow">Member verification</p>
+              <h2 className="mt-1.5 text-xl sm:text-2xl font-extrabold text-ink">Confirm a card. Browse the roster.</h2>
+              <p className="mt-1.5 text-muted">
+                Open a verification link from a membership QR code, or look up an active member in the public directory.
+              </p>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/members/lookup" className="btn btn-primary">Verify a member</Link>
-            <Link href="/contact" className="btn btn-outline">Contact CFA</Link>
+          <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
+            <Link href="/verify" className="btn btn-primary">Verify Member</Link>
+            <Link href="/members" className="btn btn-outline">Members Directory</Link>
           </div>
         </div>
       </section>

@@ -1,5 +1,6 @@
-// Facts below are taken from the official website (cfapak.org). Do not add unverified content.
-export const OFFICIAL_SITE = "https://cfapak.org";
+// Facts below are taken from the official website (cfapak.org); contact details match the
+// official member portal (members.cfapak.org). Do not add unverified content.
+export const OFFICIAL_SITE = "https://www.cfapak.org";
 
 export const officialPages = {
   about: `${OFFICIAL_SITE}/about-food-and-agriculture`,
@@ -18,11 +19,13 @@ export const contact = {
     "chamberoffoodandagriculturepk@gmail.com",
     "chamberoffoodandagriculture1@gmail.com",
   ],
-  phone: { display: "+92 342 2500004", href: "tel:+923422500004" },
+  phone: { display: "042 35491348", href: "tel:+924235491348" },
+  mobile: { display: "+92 342 2500004", href: "tel:+923422500004" },
+  address: "560, Jasmine Block, Bahria Town, Lahore",
   facebook: "https://www.facebook.com/pakistankisanboard/",
 };
 
-export const FOUNDED = "2020";
+export const FOUNDED = "2023";
 export const TAGLINE = "Empowering Farmers, Feeding the Future.";
 
 export const about = {
@@ -59,7 +62,8 @@ export const leadership = [
 
 export const navLinks = [
   { href: "/",           label: "Home" },
-  { href: "/members",    label: "Member Directory" },
+  { href: "/members",    label: "Members Directory" },
+  { href: "/verify",     label: "Verify Member" },
   { href: "/about",      label: "About CFA" },
   { href: "/leadership", label: "Leadership" },
   { href: "/contact",    label: "Contact" },

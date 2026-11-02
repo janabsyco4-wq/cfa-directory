@@ -36,12 +36,10 @@ export default function MemberCard({ member, priority }: { member: PublicMember;
               <dd className="truncate">{member.district}</dd>
             </div>
           )}
-          <div className="flex items-center gap-1 sm:gap-1.5">
-            <dt className="text-muted/80">
-              <span className="sm:hidden">No.</span>
-              <span className="hidden sm:inline">Membership No.</span>
-            </dt>
-            <dd className="font-medium text-ink truncate">{number}</dd>
+          {/* Own line, never truncated: the full number is how members are identified. */}
+          <div className="pt-0.5">
+            <dt className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.08em] text-muted/80">Membership No.</dt>
+            <dd className="mt-0.5 text-[11px] sm:text-[13px] font-semibold text-ink tabular-nums leading-snug break-words">{number}</dd>
           </div>
         </dl>
 

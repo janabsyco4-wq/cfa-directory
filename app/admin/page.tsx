@@ -3,7 +3,7 @@
 import { useEffect, useState, type ElementType } from "react";
 import Link from "next/link";
 import {
-  Users, UserCheck, UserX, Clock, ChartPie,
+  Users, UserCheck, UserX, Clock, ChartPie, CalendarX,
   UserPlus, ArrowRight, RefreshCw, ChevronRight,
 } from "lucide-react";
 import MemberAvatar from "@/components/admin/MemberAvatar";
@@ -13,6 +13,7 @@ import type { PhotoFrame } from "@/lib/photoFrame";
 interface Stats {
   total: number;
   active: number;
+  expired: number;
   inactive: number;
   pending: number;
   categories: Record<string, number>;
@@ -131,10 +132,10 @@ export default function AdminDashboard() {
       <div aria-busy={loading} className="space-y-4 sm:space-y-5">
         {loading && !stats ? (
           <>
-            <div role="status" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div role="status" className="grid grid-cols-2 gap-3 md:grid-cols-5">
               <span className="sr-only">Loading membership overview</span>
-              {Array.from({ length: 4 }, (_, i) => (
-                <div key={i} className="h-[86px] animate-pulse rounded-2xl border border-gray-800 bg-gray-900" />
+              {Array.from({ length: 5 }, (_, i) => (
+                <div key={i} className={`${i === 0 ? "col-span-2 md:col-span-1 " : ""}h-[86px] animate-pulse rounded-2xl border border-gray-800 bg-gray-900`} />
               ))}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
@@ -145,9 +146,10 @@ export default function AdminDashboard() {
           </>
         ) : stats ? (
           <>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5 [&>*:first-child]:col-span-2 md:[&>*:first-child]:col-span-1">
               <StatCard label="Total Members" value={stats.total} icon={Users} color="bg-green-500/10 text-green-300" />
               <StatCard label="Active" value={stats.active} icon={UserCheck} color="bg-emerald-500/10 text-emerald-300" />
+              <StatCard label="Expired" value={stats.expired ?? 0} icon={CalendarX} color="bg-orange-500/10 text-orange-300" />
               <StatCard label="Inactive" value={stats.inactive} icon={UserX} color="bg-rose-500/10 text-rose-300" />
               <StatCard label="Pending" value={stats.pending} icon={Clock} color="bg-amber-500/10 text-amber-300" />
             </div>

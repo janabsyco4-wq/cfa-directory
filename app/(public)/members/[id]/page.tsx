@@ -42,8 +42,10 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
   const details = [
     { label: "Membership No.", value: profile.membershipNo },
     { label: "Category",       value: profile.membershipCategory },
+    { label: "Designation",    value: profile.designation },
     { label: "District",       value: profile.district },
     { label: "Organization",   value: profile.businessName },
+    { label: "Department",     value: profile.department },
     { label: "Business type",  value: profile.businessType },
     { label: "Member since",   value: since },
   ].filter((d) => d.value);
@@ -64,7 +66,11 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
             <BadgeCheck size={14} aria-hidden /> Active member
           </p>
           <h1 className="mt-3 sm:mt-4 text-[1.75rem] leading-tight sm:text-4xl font-extrabold text-ink break-words text-balance">{name}</h1>
-          {profile.businessName && <p className="mt-2 text-muted break-words">{profile.businessName}</p>}
+          {(profile.designation || profile.businessName) && (
+            <p className="mt-2 text-muted break-words">
+              {[profile.designation, profile.businessName].filter(Boolean).join(", ")}
+            </p>
+          )}
 
           <dl className="mt-6 sm:mt-8 border-t border-line divide-y divide-line sm:divide-y-0 sm:grid sm:grid-cols-2 sm:gap-x-8 sm:gap-y-5 sm:pt-6">
             {details.map((d) => (
@@ -79,7 +85,7 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
             <ShieldCheck size={18} className="text-gold flex-shrink-0 mt-0.5" aria-hidden />
             <p>
               Personal contact details are kept private. To confirm a membership, use{" "}
-              <Link href="/members/lookup" className="font-semibold text-forest underline underline-offset-2">
+              <Link href="/verify" className="font-semibold text-forest underline underline-offset-2">
                 Verify a member
               </Link>.
             </p>

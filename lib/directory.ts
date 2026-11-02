@@ -27,6 +27,8 @@ export interface PublicMember {
 }
 
 export interface PublicProfile extends PublicMember {
+  designation?: string;
+  department?: string;
   businessType?: string;
   joinedDate?: string;
 }
