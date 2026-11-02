@@ -46,12 +46,17 @@ export default function VerificationResult({ member, orgName }: { member: Verifi
   ].filter((d) => d.value);
 
   return (
-    <article className="animate-rise bg-white border border-line rounded-xl overflow-hidden grid sm:grid-cols-[220px_1fr]">
-      <div className="relative aspect-[4/5] max-h-80 sm:max-h-none sm:aspect-auto sm:min-h-[300px] bg-canvas overflow-hidden">
-        <MemberPhoto src={member.photo} frame={member.photoFrame} alt={member.name} sizes="(min-width: 640px) 220px, 100vw" priority />
-        <span className={`absolute left-3 top-3 rounded px-2.5 py-1 text-xs font-bold uppercase tracking-wider shadow ${s.pill}`}>
-          {member.status}
-        </span>
+    <article className="animate-rise bg-white border border-line rounded-xl overflow-hidden grid sm:grid-cols-[minmax(0,280px)_1fr]">
+      {/* Same centred portrait frame as the member profile page */}
+      <div className="flex items-center justify-center bg-canvas px-6 py-8 border-b border-line sm:border-b-0 sm:border-r">
+        <div className="w-full max-w-[240px] rounded-xl bg-white p-2 ring-1 ring-line shadow-[0_18px_40px_-24px_rgba(16,59,43,0.55)]">
+          <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-canvas">
+            <MemberPhoto src={member.photo} frame={member.photoFrame} alt={member.name} sizes="240px" priority />
+            <span className={`absolute left-2 top-2 rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider shadow ${s.pill}`}>
+              {member.status}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="p-5 sm:p-7">
@@ -64,10 +69,10 @@ export default function VerificationResult({ member, orgName }: { member: Verifi
         <dl className="mt-5 border-t border-line divide-y divide-line">
           {details.map((d) => (
             <div key={d.label} className="flex items-baseline justify-between gap-4 py-2.5">
-              <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted flex-shrink-0">
-                <d.icon size={13} aria-hidden /> {d.label}
+              <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted min-w-0">
+                <d.icon size={13} className="shrink-0" aria-hidden /> {d.label}
               </dt>
-              <dd className={`text-[15px] font-semibold text-ink text-right break-words min-w-0 ${d.mono ? "font-mono text-sm" : ""}`}>{d.value}</dd>
+              <dd className={`text-[15px] font-semibold text-ink text-right break-words min-w-0 ${d.mono ? "font-mono text-sm whitespace-nowrap shrink-0" : ""}`}>{d.value}</dd>
             </div>
           ))}
         </dl>
