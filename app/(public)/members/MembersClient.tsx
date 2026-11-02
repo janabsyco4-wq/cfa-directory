@@ -79,7 +79,6 @@ export default function MembersClient({
   const [status, setStatus]           = useState<"ready" | "loading" | "error">(useInitial ? "ready" : "loading");
   const [reloadKey, setReloadKey]     = useState(0);
   const [sheetOpen, setSheetOpen]     = useState(false);
-  const resultsRef   = useRef<HTMLDivElement>(null);
   const filtersBtnRef = useRef<HTMLButtonElement>(null);
   const sheetCloseRef = useRef<HTMLButtonElement>(null);
 
@@ -148,7 +147,8 @@ export default function MembersClient({
   function goToPage(page: number) {
     setStatus("loading");
     setParams((p) => ({ ...p, page }));
-    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // A new page starts at the top, like a fresh page load (instant: a long smooth scroll feels sluggish).
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }
 
   function clearAll() {
@@ -320,7 +320,7 @@ export default function MembersClient({
         </div>
       )}
 
-      <div ref={resultsRef} className="scroll-mt-40 md:scroll-mt-24 mt-4 md:mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 min-h-9">
+      <div className="mt-4 md:mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 min-h-9">
         <p className="text-[13px] sm:text-sm text-muted" aria-live="polite">
           {status === "loading" && "Loading members…"}
           {status === "error" && "Members could not be loaded."}

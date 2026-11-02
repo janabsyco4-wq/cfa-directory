@@ -22,6 +22,8 @@ export default function MemberPhoto({ src, alt, sizes, priority, className = "",
     // An error before hydration leaves the image complete with no pixels.
     if (img.complete && img.naturalWidth === 0 && img.currentSrc) fail();
     else img.addEventListener("error", fail, { once: true });
+    // A cached or priority image can finish before hydration, so onLoad never fires and it would stay invisible.
+    if (img.complete && img.naturalWidth > 0) setLoaded(true);
   }, []);
 
   if (!src || errored) {

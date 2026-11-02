@@ -57,8 +57,13 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
       </Link>
 
       <article className="animate-rise mt-2 sm:mt-6 bg-white border border-line rounded-xl overflow-hidden grid md:grid-cols-[minmax(0,360px)_1fr]">
-        <div className="relative aspect-[4/5] max-h-[420px] md:max-h-none md:aspect-auto md:min-h-[440px] bg-canvas overflow-hidden">
-          <MemberPhoto src={profile.photo} frame={profile.photoFrame} alt={name} priority sizes="(min-width: 768px) 360px, 100vw" />
+        {/* Photo sits in a centred portrait frame instead of stretching to the column's height */}
+        <div className="flex items-center justify-center bg-canvas px-6 py-8 sm:py-10 border-b border-line md:border-b-0 md:border-r">
+          <div className="w-full max-w-[240px] sm:max-w-[260px] md:max-w-[280px] rounded-xl bg-white p-2 ring-1 ring-line shadow-[0_18px_40px_-24px_rgba(16,59,43,0.55)]">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-canvas">
+              <MemberPhoto src={profile.photo} frame={profile.photoFrame} alt={name} priority sizes="(min-width: 768px) 280px, 260px" />
+            </div>
+          </div>
         </div>
 
         <div className="p-5 sm:p-8 lg:p-10">

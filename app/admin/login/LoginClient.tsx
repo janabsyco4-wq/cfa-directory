@@ -2,7 +2,8 @@
 
 import { useState, FormEvent } from "react";
 import Image from "next/image";
-import { Lock, User, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Lock, User, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 
 const REASONS: Record<string, string> = {
   idle: "You were signed out after 30 minutes of inactivity.",
@@ -52,6 +53,13 @@ export default function LoginClient({ reason }: { reason?: string }) {
       </div>
 
       <div className="relative w-full max-w-sm">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 min-h-11 -ml-1 px-1 mb-3 rounded-lg text-sm font-medium text-gray-400 hover:text-white focus-visible:outline-2 focus-visible:outline-green-500 transition"
+        >
+          <ArrowLeft size={16} aria-hidden /> Back to website
+        </Link>
+
         {/* Card */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
           {/* Logo */}
