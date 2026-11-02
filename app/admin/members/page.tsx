@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Search, X, UserPlus, Pencil, Trash2,
   ChevronLeft, ChevronRight, SlidersHorizontal,
-  AlertTriangle, Loader2, CreditCard,
+  AlertTriangle, Loader2, CreditCard, FileSpreadsheet,
 } from "lucide-react";
 import CategoryBadge from "@/components/CategoryBadge";
 import MemberAvatar from "@/components/admin/MemberAvatar";
@@ -122,6 +122,14 @@ export default function AdminMembersPage() {
     fetchMembers();
   }
 
+  // Excel export follows whatever the list is currently filtered to.
+  const filtered = !!debounced.trim() || category !== "All" || status !== "All";
+  const exportHref = `/api/admin/members/export?${new URLSearchParams({
+    search: debounced.trim(),
+    category: category === "All" ? "" : category,
+    status: status === "All" ? "" : status,
+  })}`;
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
@@ -132,13 +140,25 @@ export default function AdminMembersPage() {
             {data ? `${data.total} total members` : "Loading..."}
           </p>
         </div>
-        <Link
-          href="/admin/members/new"
-          className="hidden sm:inline-flex items-center gap-2 min-h-10 px-4 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-500 transition"
-        >
-          <UserPlus size={15} aria-hidden />
-          Add Member
-        </Link>
+        <div className="flex items-center gap-2">
+          <a
+            href={exportHref}
+            download
+            title={filtered ? "Export the members matching the current filters" : "Export every member"}
+            className="inline-flex items-center gap-2 min-h-10 px-3.5 sm:px-4 rounded-xl border border-gray-700 bg-gray-900 text-gray-200 text-sm font-semibold hover:bg-gray-800 transition"
+          >
+            <FileSpreadsheet size={15} className="text-green-400" aria-hidden />
+            <span className="sm:hidden">Excel</span>
+            <span className="hidden sm:inline">{filtered ? "Export filtered to Excel" : "Export all to Excel"}</span>
+          </a>
+          <Link
+            href="/admin/members/new"
+            className="hidden sm:inline-flex items-center gap-2 min-h-10 px-4 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-500 transition"
+          >
+            <UserPlus size={15} aria-hidden />
+            Add Member
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}

@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
 import { requireAdmin } from "@/lib/admin";
 import { normalizeFrame } from "@/lib/photoFrame";
-import { escapeRegex, memberSaveError, revalidateMemberPages } from "@/lib/members";
+import { adminMemberQuery, memberSaveError, revalidateMemberPages } from "@/lib/members";
 import { formatMemberNo } from "@/lib/memberNumber";
 import { cardNumberQuery } from "@/lib/verification";
 
@@ -14,31 +14,9 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
     const { searchParams } = new URL(req.url);
-    const search   = (searchParams.get("search") ?? "").trim();
-    const category = searchParams.get("category") ?? "";
-    const status   = searchParams.get("status") ?? "";
-    const card     = searchParams.get("card") ?? "";
     const page     = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
     const limit    = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const query: any = {};
-    if (category && category !== "All") query.membershipCategory = category;
-    if (status   && status   !== "All") query.status = status;
-    if (search) {
-      const rx = { $regex: escapeRegex(search), $options: "i" };
-      query.$or = [
-        { firstName:    rx },
-        { lastName:     rx },
-        { membershipNo: rx },
-        { businessName: rx },
-        { cnic:         rx },
-      ];
-    }
-    // Card filter: both sides uploaded, or at least one side missing.
-    const blank = { $in: ["", null] };
-    if (card === "uploaded") query.$and = [{ cardFront: { $nin: ["", null] } }, { cardBack: { $nin: ["", null] } }];
-    if (card === "missing")  query.$and = [{ $or: [{ cardFront: blank }, { cardBack: blank }] }];
+    const query    = adminMemberQuery(searchParams);
 
     const total   = await Member.countDocuments(query);
     const members = await Member.find(query)

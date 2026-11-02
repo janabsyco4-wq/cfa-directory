@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
+import { SITE_URL } from "@/lib/site";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -37,30 +38,24 @@ export const metadata: Metadata = {
   authors: [{ name: "CFA Pakistan" }],
   creator: "Chamber of Food and Agriculture Pakistan",
   publisher: "CFA Pakistan",
-  metadataBase: new URL("https://cfa-directory.vercel.app"),
+  metadataBase: new URL(SITE_URL),
+  applicationName: "CFA Pakistan Member Portal",
+  category: "agriculture",
+  // Share images come from app/opengraph-image.jpg and app/twitter-image.jpg (WhatsApp/Facebook don't show AVIF).
   openGraph: {
     type: "website",
     locale: "en_PK",
-    url: "https://cfa-directory.vercel.app",
+    url: SITE_URL,
     siteName: "CFA Pakistan",
     title: "CFA Pakistan — Chamber of Food and Agriculture",
     description:
       "Chamber of Food and Agriculture Pakistan unites farmers, agribusinesses, industry experts, and stakeholders to promote sustainable agriculture, food security, and market development.",
-    images: [
-      {
-        url: "/logo.avif",
-        width: 1200,
-        height: 630,
-        alt: "CFA Pakistan Logo",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "CFA Pakistan — Chamber of Food and Agriculture",
     description:
       "Empowering Farmers, Feeding the Future. Official member directory of Chamber of Food and Agriculture Pakistan.",
-    images: ["/logo.avif"],
   },
   robots: {
     index: true,

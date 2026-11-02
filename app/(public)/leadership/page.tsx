@@ -6,6 +6,7 @@ import { about, leadership, officialPages } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Leadership",
+  alternates: { canonical: "/leadership" },
   description: "Leadership of the Chamber of Food and Agriculture Pakistan.",
 };
 

@@ -5,15 +5,21 @@ import Member from "@/models/Member";
 import type { VerificationRecord } from "@/components/VerificationResult";
 
 const VERIFY_FIELDS =
-  "membershipNo firstName lastName photo photoFrame membershipCategory designation businessName department district joinedDate expiryDate status";
+  "membershipNo firstName lastName photo photoFrame membershipCategory designation businessName department district joinedDate expiryDate status cardFront cardBack";
 
 export type VerifyBy = "card" | "cnic";
+
+/** A lapsed expiry date outranks a stale "Active" flag. */
+export function effectiveStatus(status: string, expiryDate?: Date | string | null): VerificationRecord["status"] {
+  const expiry = expiryDate ? new Date(expiryDate) : undefined;
+  if (status === "Active" && expiry && expiry.getTime() < Date.now()) return "Expired";
+  return (status ?? "Inactive") as VerificationRecord["status"];
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toRecord(m: any): VerificationRecord {
   const expiry = m.expiryDate ? new Date(m.expiryDate) : undefined;
-  // A lapsed expiry date outranks a stale "Active" flag.
-  const status = m.status === "Active" && expiry && expiry.getTime() < Date.now() ? "Expired" : m.status;
+  const status = effectiveStatus(m.status, expiry);
   return {
     id: String(m._id),
     membershipNo: m.membershipNo,
@@ -27,7 +33,9 @@ function toRecord(m: any): VerificationRecord {
     district: m.district || undefined,
     joinedDate: m.joinedDate ? new Date(m.joinedDate).toISOString() : undefined,
     expiryDate: expiry?.toISOString(),
-    status: status ?? "Inactive",
+    status,
+    // Only whether a card exists; the image URLs stay server-side and are served via /api/cards.
+    card: { front: !!m.cardFront, back: !!m.cardBack },
   };
 }
 

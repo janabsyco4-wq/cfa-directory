@@ -43,10 +43,3 @@ export function getPhotoUploadSignature(kind: UploadKind = "photo") {
     signature: cloudinary.utils.api_sign_request(params, process.env.CLOUDINARY_API_SECRET!),
   };
 }
-
-/**
- * Delete an image from Cloudinary by its public_id.
- */
-export async function deleteFromCloudinary(publicId: string): Promise<void> {
-  await cloudinary.uploader.destroy(publicId);
-}

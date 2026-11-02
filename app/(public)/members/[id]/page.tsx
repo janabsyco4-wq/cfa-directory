@@ -5,6 +5,7 @@ import { cache } from "react";
 import { ArrowLeft, BadgeCheck, ShieldCheck } from "lucide-react";
 import MemberPhoto from "@/components/MemberPhoto";
 import { getPublicProfile } from "@/lib/members";
+import { SITE_URL } from "@/lib/site";
 
 export const revalidate = 300;
 
@@ -21,10 +22,16 @@ export async function generateMetadata({ params }: PageProps<"/members/[id]">): 
   const { profile } = await loadProfile(id);
   if (!profile) return { title: "Member not found", robots: { index: false, follow: true } };
   const name = `${profile.firstName} ${profile.lastName}`.trim();
+  const role = [profile.designation, profile.district].filter(Boolean).join(", ");
+  const description = `${name}${role ? ` (${role})` : ""} — ${profile.membershipCategory} member of the Chamber of Food and Agriculture Pakistan.`;
+  // Member photo as the share preview; the site-wide image is the fallback when there is none.
+  const images = profile.photo ? [{ url: encodeURI(profile.photo), alt: name }] : undefined;
   return {
     title: name,
-    description: `${name} — ${profile.membershipCategory} member of the Chamber of Food and Agriculture Pakistan.`,
+    description,
     alternates: { canonical: `/members/${id}` },
+    openGraph: { type: "profile", title: `${name} — CFA Pakistan member`, description, url: `/members/${id}`, ...(images && { images }) },
+    twitter: { card: images ? "summary" : "summary_large_image", title: `${name} — CFA Pakistan member`, description, ...(images && { images }) },
   };
 }
 
@@ -50,8 +57,38 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
     { label: "Member since",   value: since },
   ].filter((d) => d.value);
 
+  const personSchema = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name,
+    url: `${SITE_URL}/members/${id}`,
+    ...(profile.photo && { image: profile.photo.startsWith("http") ? profile.photo : `${SITE_URL}${encodeURI(profile.photo)}` }),
+    ...(profile.designation && { jobTitle: profile.designation }),
+    ...(profile.businessName && { worksFor: { "@type": "Organization", name: profile.businessName } }),
+    ...(profile.district && { address: { "@type": "PostalAddress", addressLocality: profile.district, addressCountry: "PK" } }),
+    memberOf: {
+      "@type": "ProgramMembership",
+      membershipNumber: profile.membershipNo,
+      programName: `${profile.membershipCategory} membership`,
+      hostingOrganization: { "@type": "Organization", name: "Chamber of Food and Agriculture Pakistan", url: SITE_URL },
+    },
+  };
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+      { "@type": "ListItem", position: 2, name: "Member Directory", item: `${SITE_URL}/members` },
+      { "@type": "ListItem", position: 3, name, item: `${SITE_URL}/members/${id}` },
+    ],
+  };
+
   return (
     <div className="container-site py-4 sm:py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([personSchema, breadcrumbSchema]).replace(/</g, "\\u003c") }}
+      />
       <Link href="/members" className="inline-flex items-center gap-2 min-h-11 text-sm font-semibold text-forest hover:text-forest-deep">
         <ArrowLeft size={16} aria-hidden /> Back to Member Directory
       </Link>

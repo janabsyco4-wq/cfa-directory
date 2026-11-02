@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import MemberAvatar from "@/components/admin/MemberAvatar";
 import ImageUploadField from "@/components/admin/ImageUploadField";
-import { Feedback, secondaryBtn } from "@/components/admin/FormField";
+import { Feedback, primaryBtn, secondaryBtn } from "@/components/admin/FormField";
 import type { PhotoFrame } from "@/lib/photoFrame";
 
 interface CardMember {
@@ -31,12 +31,6 @@ const FILTERS = [
   { value: "missing",  label: "Missing" },
   { value: "uploaded", label: "Uploaded" },
 ] as const;
-
-/** Cloudinary serves the original file as a download with a readable name. */
-function downloadUrl(url: string, name: string) {
-  const safe = name.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "card";
-  return url.replace("/upload/", `/upload/fl_attachment:${safe}/`);
-}
 
 /** Public /verify link for this member, plus a QR code to place on the card artwork. */
 function VerificationLink({ memberId, fileBase }: { memberId: string; fileBase: string }) {
@@ -194,7 +188,7 @@ export default function CardsClient({ initialMemberId }: { initialMemberId?: str
         <p className="text-gray-500 text-sm mt-0.5">Upload each member&apos;s finished card artwork, then download or print it.</p>
       </header>
 
-      <div className="grid lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] gap-5 items-start">
         {/* Member picker */}
         <section className={`bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${selectedId ? "hidden lg:block" : ""}`}>
           <div className="p-3 space-y-2 border-b border-gray-800">
@@ -348,7 +342,7 @@ export default function CardsClient({ initialMemberId }: { initialMemberId?: str
                       />
                       {url && (
                         <div className="grid grid-cols-2 gap-2">
-                          <a href={downloadUrl(url, `${fileBase}_${side === "cardFront" ? "front" : "back"}`)}
+                          <a href={`/api/cards/${selected._id}?side=${side === "cardFront" ? "front" : "back"}`} download
                             className="inline-flex items-center justify-center gap-2 min-h-10 rounded-xl bg-gray-800 border border-gray-700 text-gray-300 text-sm hover:bg-gray-700 transition">
                             <Download size={14} aria-hidden /> Download
                           </a>
@@ -364,10 +358,15 @@ export default function CardsClient({ initialMemberId }: { initialMemberId?: str
               </div>
 
               <div className="flex flex-wrap items-center gap-3 border-t border-gray-800 pt-4">
+                {selected.cardFront || selected.cardBack ? (
+                  <a href={`/api/cards/${selected._id}?side=pdf`} download className={primaryBtn}>
+                    <Download size={15} aria-hidden /> Download PDF{selected.cardFront && selected.cardBack ? " (both sides)" : ""}
+                  </a>
+                ) : null}
                 <button type="button" onClick={() => window.print()} disabled={!selected.cardFront && !selected.cardBack} className={secondaryBtn}>
                   <Printer size={15} aria-hidden /> Print card
                 </button>
-                <p className="text-xs text-gray-500">Prints both sides at standard ID-card size (3.375 × 2.125 in).</p>
+                <p className="text-xs text-gray-500 basis-full sm:basis-auto">Both at standard ID-card size (3.375 × 2.125 in).</p>
               </div>
 
               <VerificationLink memberId={selected._id} fileBase={fileBase} />

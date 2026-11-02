@@ -23,7 +23,8 @@ function toLogin(req: NextRequest, reason?: string) {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const res = NextResponse.next();
-  if (pathname === "/admin/login") return harden(res);
+  // Public admin pages: sign-in and owner password reset.
+  if (pathname === "/admin/login" || pathname === "/admin/reset") return harden(res);
 
   const session = await getIronSession<SessionData>(req, res, sessionOptions);
   // Sessions from before admins moved into the database carry no userId; send them to sign in again.

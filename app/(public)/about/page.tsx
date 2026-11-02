@@ -7,6 +7,7 @@ import { about, FOUNDED, officialPages, TAGLINE } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "About CFA",
+  alternates: { canonical: "/about" },
   description: about.summary,
 };
 

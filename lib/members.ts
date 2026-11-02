@@ -43,6 +43,34 @@ function toPublic(m: any): PublicMember {
   };
 }
 
+/** Admin list/export filter from ?search=&category=&status=&card= (shared so exports match the list). */
+export function adminMemberQuery(params: URLSearchParams) {
+  const search   = (params.get("search") ?? "").trim().slice(0, 100);
+  const category = params.get("category") ?? "";
+  const status   = params.get("status") ?? "";
+  const card     = params.get("card") ?? "";
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const query: any = {};
+  if (category && category !== "All") query.membershipCategory = category;
+  if (status   && status   !== "All") query.status = status;
+  if (search) {
+    const rx = { $regex: escapeRegex(search), $options: "i" };
+    query.$or = [
+      { firstName:    rx },
+      { lastName:     rx },
+      { membershipNo: rx },
+      { businessName: rx },
+      { cnic:         rx },
+    ];
+  }
+  // Card filter: both sides uploaded, or at least one side missing.
+  const blank = { $in: ["", null] };
+  if (card === "uploaded") query.$and = [{ cardFront: { $nin: ["", null] } }, { cardBack: { $nin: ["", null] } }];
+  if (card === "missing")  query.$and = [{ $or: [{ cardFront: blank }, { cardBack: blank }] }];
+  return query;
+}
+
 /** Turns a failed member save into a message an admin can act on. */
 export function memberSaveError(err: unknown): { error: string; status: number } {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -61,6 +61,25 @@ export async function requireAdmin() {
 export const MAX_FAILED_LOGINS = 5;
 export const LOCKOUT_MS = 15 * 60 * 1000;
 
+export function lockedMessage(until: Date) {
+  const mins = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60000));
+  return `Too many failed sign-in attempts. Try again in ${mins} minute${mins === 1 ? "" : "s"}.`;
+}
+
+/** Counts a failed sign-in or reset attempt; locks the account after MAX_FAILED_LOGINS. */
+export async function recordFailure(admin: IAdmin) {
+  admin.failedLogins = (admin.failedLogins ?? 0) + 1;
+  if (admin.failedLogins >= MAX_FAILED_LOGINS) {
+    admin.lockUntil = new Date(Date.now() + LOCKOUT_MS);
+    admin.failedLogins = 0;
+  }
+  await admin.save();
+}
+
+export function isLocked(admin: IAdmin) {
+  return !!admin.lockUntil && admin.lockUntil.getTime() > Date.now();
+}
+
 /** Starts a fresh session for this admin. */
 export async function startSession(admin: IAdmin) {
   const session = await getSession();

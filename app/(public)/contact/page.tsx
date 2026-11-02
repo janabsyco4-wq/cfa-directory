@@ -7,6 +7,7 @@ import { getPublicContact } from "@/lib/organization";
 
 export const metadata: Metadata = {
   title: "Contact",
+  alternates: { canonical: "/contact" },
   description: "Contact the Chamber of Food and Agriculture Pakistan.",
 };
 

@@ -172,6 +172,12 @@ export default function LoginClient({ reason }: { reason?: string }) {
               {loading ? "Signing in..." : needsCode ? "Verify & Sign In" : "Sign In"}
             </button>
           </form>
+
+          <p className="mt-5 text-center">
+            <Link href="/admin/reset" className="text-sm text-gray-400 hover:text-white underline-offset-4 hover:underline">
+              Forgot password?
+            </Link>
+          </p>
         </div>
 
         <p className="text-center text-gray-700 text-xs mt-6">

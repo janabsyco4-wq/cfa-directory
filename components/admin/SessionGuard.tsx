@@ -15,7 +15,7 @@ const WARN_BEFORE_MS = 60_000;
  */
 export default function SessionGuard({ idleMs }: { idleMs: number }) {
   const pathname = usePathname();
-  const active = pathname !== "/admin/login";
+  const active = pathname !== "/admin/login" && pathname !== "/admin/reset";
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const lastActivity = useRef(0);
   const lastPing = useRef(0);

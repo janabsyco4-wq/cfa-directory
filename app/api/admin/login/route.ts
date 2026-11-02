@@ -1,25 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { checkPassword, findAdminByLogin, LOCKOUT_MS, MAX_FAILED_LOGINS, startSession } from "@/lib/admin";
+import { checkPassword, findAdminByLogin, lockedMessage, recordFailure, startSession } from "@/lib/admin";
 import { hashRecoveryCode, verifyTotp } from "@/lib/totp";
-import type { IAdmin } from "@/models/Admin";
 
 // Compared against when the login doesn't exist, so response time doesn't reveal valid logins.
 const DUMMY_HASH = bcrypt.hashSync("timing-equalizer-not-a-password", 12);
-
-function lockedMessage(until: Date) {
-  const mins = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60000));
-  return `Too many failed sign-in attempts. Try again in ${mins} minute${mins === 1 ? "" : "s"}.`;
-}
-
-async function recordFailure(admin: IAdmin) {
-  admin.failedLogins = (admin.failedLogins ?? 0) + 1;
-  if (admin.failedLogins >= MAX_FAILED_LOGINS) {
-    admin.lockUntil = new Date(Date.now() + LOCKOUT_MS);
-    admin.failedLogins = 0;
-  }
-  await admin.save();
-}
 
 export async function POST(req: NextRequest) {
   try {

@@ -82,7 +82,7 @@ export default function OrganizationClient() {
           <h1 className="text-xl sm:text-2xl font-extrabold text-white">Organization Setup</h1>
           <p className="text-gray-500 text-sm mt-0.5">Chamber identity, reused across the public website.</p>
         </div>
-        <button type="submit" disabled={saving} className={`${primaryBtn} hidden sm:inline-flex`}>
+        <button type="submit" disabled={saving} className={`${primaryBtn} max-sm:hidden`}>
           {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
           {saving ? "Saving..." : "Save settings"}
         </button>

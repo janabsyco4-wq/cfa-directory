@@ -5,7 +5,7 @@ import { ArrowRight, ArrowUpRight, BadgeCheck, Handshake, Landmark, LockKeyhole,
 import MemberCard from "@/components/MemberCard";
 import { CATEGORIES } from "@/lib/directory";
 import { getDirectoryStats, getDistrictCounts, getFeaturedMembers } from "@/lib/members";
-import { about, FOUNDED, leadership, officialPages, TAGLINE } from "@/lib/site";
+import { about, FOUNDED, leadership, officialPages, SITE_URL, TAGLINE } from "@/lib/site";
 import { frameStyle } from "@/lib/photoFrame";
 import { getPublicContact } from "@/lib/organization";
 
@@ -95,19 +95,33 @@ export default async function HomePage() {
     name: contact.name,
     alternateName: "CFA Pakistan",
     url: contact.website.href,
-    logo: "https://cfa-directory.vercel.app/logo.avif",
+    logo: `${SITE_URL}/icon.png`,
+    image: `${SITE_URL}/opengraph-image.jpg`,
     description: about.platform,
     email: contact.emails[0],
     telephone: contact.phone.display,
     foundingDate: FOUNDED,
     nonprofitStatus: "Nonprofit",
     address: { "@type": "PostalAddress", addressCountry: "PK", ...(contact.address && { streetAddress: contact.address }) },
-    sameAs: [contact.facebook],
+    sameAs: [contact.facebook, contact.website.href],
+  };
+
+  // Lets search engines offer a direct member search from results.
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "CFA Pakistan Member Portal",
+    url: SITE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/members?search={search_term_string}` },
+      "query-input": "required name=search_term_string",
+    },
   };
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationSchema, websiteSchema]).replace(/</g, "\\u003c") }} />
 
       {/* Hero */}
       <section className="relative isolate overflow-hidden bg-forest-deep">
