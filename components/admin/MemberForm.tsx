@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload, Loader2, Save, ArrowLeft, Camera, Trash2 } from "lucide-react";
 import PhotoFramer from "@/components/admin/PhotoFramer";
 import ImageUploadField from "@/components/admin/ImageUploadField";
+import DateField from "@/components/admin/DateField";
 import { Field, inputCls } from "@/components/admin/FormField";
 import { DEFAULT_FRAME, normalizeFrame, type PhotoFrame } from "@/lib/photoFrame";
 import { uploadImage } from "@/lib/uploadImage";
@@ -357,13 +358,11 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
               </select>
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Joined Date" required>
-                <input type="date" value={form.joinedDate} onChange={(e) => set("joinedDate", e.target.value)}
-                  required className={inputCls} />
+              <Field label="Joined Date" required hint="Type DD/MM/YYYY or use the calendar.">
+                <DateField value={form.joinedDate} onChange={(iso) => set("joinedDate", iso)} required />
               </Field>
-              <Field label="Expiry Date">
-                <input type="date" value={form.expiryDate} min={form.joinedDate} onChange={(e) => set("expiryDate", e.target.value)}
-                  className={inputCls} />
+              <Field label="Expiry Date" hint="Type DD/MM/YYYY or use the calendar.">
+                <DateField value={form.expiryDate} onChange={(iso) => set("expiryDate", iso)} min={form.joinedDate} />
               </Field>
             </div>
           </div>
