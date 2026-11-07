@@ -157,10 +157,23 @@ export function overrunsMobile(code: string, previous: string, digits: string) {
     && isValidMobile(`+${code}${previous}`) && !isValidDigits(code, digits);
 }
 
+/**
+ * What belongs in the number box from what was entered: no local 0, and no country code when it
+ * was written in front of the number without a "+" (WhatsApp copies "923001234567" like this).
+ * The code only comes off when that is what makes the number valid, since 922… is also a real
+ * Pakistani landline.
+ */
+export function nationalDigits(code: string, iso: string, digits: string) {
+  const national = withoutTrunkZero(digits, iso);
+  if (!national.startsWith(code) || isValidDigits(code, national)) return national;
+  const rest = withoutTrunkZero(national.slice(code.length), iso);
+  return isValidDigits(code, rest) ? rest : national;
+}
+
 /** One plain number in the country's format; anything else (two numbers, words) comes back untouched. */
 export function tidyNumber(code: string, iso: string, raw: string) {
   const digits = raw.replace(/\D/g, "");
   if (!digits || /[^\d\s().-]/.test(raw) || !countryForCode(code, iso)) return raw;
-  const national = withoutTrunkZero(digits, iso);
+  const national = nationalDigits(code, iso, digits);
   return national.length + code.length > MAX_DIGITS ? raw : formatDigits(code, national);
 }

@@ -5,7 +5,7 @@ import { ChevronDown, Search } from "lucide-react";
 import { inputCls } from "@/components/admin/FormField";
 import {
   COMMON_COUNTRIES, COUNTRIES, DEFAULT_COUNTRY, OTHER_COUNTRIES,
-  composePhone, countryForCode, formatDigits, isValidDigits, overrunsMobile, splitPhone, tidyNumber, withoutTrunkZero, type Country,
+  composePhone, countryForCode, formatDigits, isValidDigits, nationalDigits, overrunsMobile, splitPhone, tidyNumber, type Country,
 } from "@/lib/countries";
 
 function Flag({ iso }: { iso: string }) {
@@ -100,7 +100,7 @@ export default function PhoneField({
 
     const before = raw.slice(0, e.target.selectionStart ?? raw.length).replace(/\D/g, "").length;
     // Mid-edit a number can start with 0 for a moment (300… with the 3 deleted); only leaving the box tidies that.
-    const digits = typed.length < previous.length ? typed : withoutTrunkZero(typed, parts.iso);
+    const digits = typed.length < previous.length ? typed : nationalDigits(parts.code, parts.iso, typed);
     const refused = overrunsMobile(parts.code, previous, digits);
     caretAfterDigit.current = Math.max(0, (refused ? before - 1 : before) - (typed.length - digits.length));
     update({ ...parts, number: formatDigits(parts.code, refused ? previous : digits) });
