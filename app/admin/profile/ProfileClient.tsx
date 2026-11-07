@@ -5,6 +5,7 @@ import {
   Check, Copy, Eye, EyeOff, KeyRound, Loader2, Lock, LogOut, Mail, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { Feedback, Field, Panel, inputCls, primaryBtn, secondaryBtn } from "@/components/admin/FormField";
+import PhoneField from "@/components/admin/PhoneField";
 
 interface AdminProfile {
   login: string;
@@ -118,10 +119,10 @@ function ProfileTab({ admin, onSaved }: { admin: AdminProfile; onSaved: (a: Admi
         </Field>
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Mobile number">
-            <input value={mobile} onChange={(e) => setMobile(e.target.value)} autoComplete="tel" inputMode="tel" placeholder="0300-1234567" className={inputCls} />
+            <PhoneField label="Mobile number" value={mobile} onChange={setMobile} autoComplete="tel" />
           </Field>
           <Field label="WhatsApp number">
-            <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} inputMode="tel" placeholder="0300-1234567" className={inputCls} />
+            <PhoneField label="WhatsApp number" value={whatsapp} onChange={setWhatsapp} />
           </Field>
         </div>
         <Field label="Login email">

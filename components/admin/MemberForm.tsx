@@ -6,6 +6,7 @@ import { Upload, Loader2, Save, ArrowLeft, Camera, Trash2 } from "lucide-react";
 import PhotoFramer from "@/components/admin/PhotoFramer";
 import ImageUploadField from "@/components/admin/ImageUploadField";
 import DateField from "@/components/admin/DateField";
+import PhoneField from "@/components/admin/PhoneField";
 import { Field, inputCls } from "@/components/admin/FormField";
 import { DEFAULT_FRAME, normalizeFrame, type PhotoFrame } from "@/lib/photoFrame";
 import { uploadImage } from "@/lib/uploadImage";
@@ -98,22 +99,6 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
     return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
   }
 
-  function formatPhone(raw: string) {
-    // Allow + at start, strip other non-digits
-    const hasPlus = raw.startsWith("+");
-    const digits = raw.replace(/\D/g, "").slice(0, 12);
-    if (!digits) return hasPlus ? "+" : "";
-    if (hasPlus) {
-      // +92 3XX XXXXXXX
-      if (digits.length <= 2) return `+${digits}`;
-      if (digits.length <= 5) return `+${digits.slice(0, 2)} ${digits.slice(2)}`;
-      return `+${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
-    }
-    // 03XX-XXXXXXX
-    if (digits.length <= 4) return digits;
-    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
-  }
-
   function set(field: keyof MemberFormData, value: string | number) {
     setForm((prev) => {
       const next = { ...prev, [field]: value };
@@ -127,10 +112,6 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
 
   function handleCnic(e: ChangeEvent<HTMLInputElement>) {
     set("cnic", formatCnic(e.target.value));
-  }
-
-  function handlePhone(field: "phone" | "whatsapp") {
-    return (e: ChangeEvent<HTMLInputElement>) => set(field, formatPhone(e.target.value));
   }
 
   async function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
@@ -430,12 +411,10 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
                   placeholder="1234567-8" className={inputCls} />
               </Field>
               <Field label="Mobile" required={rules.requireMobile}>
-                <input value={form.phone} onChange={handlePhone("phone")} inputMode="tel" autoComplete="off"
-                  placeholder="+92 300 1234567" maxLength={16} className={inputCls} />
+                <PhoneField label="Mobile" value={form.phone} onChange={(v) => set("phone", v)} />
               </Field>
               <Field label="WhatsApp" required={rules.requireWhatsapp}>
-                <input value={form.whatsapp} onChange={handlePhone("whatsapp")} inputMode="tel" autoComplete="off"
-                  placeholder="+92 300 1234567" maxLength={16} className={inputCls} />
+                <PhoneField label="WhatsApp" value={form.whatsapp} onChange={(v) => set("whatsapp", v)} />
               </Field>
               <div className="sm:col-span-2">
                 <Field label="Email">
