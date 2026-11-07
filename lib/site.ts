@@ -3,7 +3,7 @@
 export const OFFICIAL_SITE = "https://www.cfapak.org";
 
 // Canonical address of this portal (sitemap, share links, structured data). Set NEXT_PUBLIC_SITE_URL for a custom domain.
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://cfa-directory.vercel.app").replace(/\/+$/, "");
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://members.cfapak.org").replace(/\/+$/, "");
 
 export const officialPages = {
   about: `${OFFICIAL_SITE}/about-food-and-agriculture`,
