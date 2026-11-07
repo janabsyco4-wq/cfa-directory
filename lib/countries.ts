@@ -1,3 +1,6 @@
+import { AsYouType, Metadata, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js/min";
+import { isValidPhoneNumber as isValidMobile } from "libphonenumber-js/mobile";
+
 // Country calling codes for phone inputs. [ISO code, name, calling code]
 export type Country = { iso: string; name: string; dial: string };
 
@@ -72,47 +75,92 @@ export function countryByIso(iso: string) {
   return COUNTRIES.find((c) => c.iso === iso) ?? COUNTRIES.find((c) => c.iso === DEFAULT_COUNTRY)!;
 }
 
-/** "+971…" or "00971…" → its digits; numbers without an international prefix have no code to read. */
-function internationalDigits(value: string) {
+// Which country a code means on its own when several share it.
+const USUAL_FOR_SHARED_CODE = ["US", "RU"];
+
+/** The country with exactly this calling code (digits only), or null. */
+export function countryForCode(code: string, preferred?: string): Country | null {
+  const matches = COUNTRIES.filter((c) => c.dial.slice(1) === code);
+  return matches.find((c) => c.iso === preferred) ?? matches.find((c) => USUAL_FOR_SHARED_CODE.includes(c.iso)) ?? matches[0] ?? null;
+}
+
+/** "+971 50…" or "00971 50…" → the code and the rest, as the two boxes show them. */
+function splitInternational(value: string, preferred: string) {
   const v = value.trim();
-  if (v.startsWith("+")) return v.replace(/\D/g, "");
-  if (v.startsWith("00")) return v.replace(/\D/g, "").slice(2);
+  if (!v.startsWith("+") && !v.startsWith("00")) return null;
+  const digits = v.replace(/\D/g, "").slice(v.startsWith("00") ? 2 : 0);
+  for (let len = Math.min(4, digits.length); len > 0; len--) {
+    const country = countryForCode(digits.slice(0, len), preferred);
+    if (!country) continue;
+    let skip = len + (v.startsWith("00") ? 2 : 0);
+    let i = 0;
+    while (skip > 0) if (/\d/.test(v[i++])) skip--;
+    return { iso: country.iso, code: country.dial.slice(1), number: v.slice(i).replace(/^[\s-]+/, "") };
+  }
   return null;
 }
 
-/** The country a typed number belongs to. `preferred` wins when countries share a code (+1, +7). */
-export function detectCountry(value: string, preferred?: string): Country | null {
-  const digits = internationalDigits(value);
-  if (!digits) return null;
-  const matches = COUNTRIES.filter((c) => digits.startsWith(c.dial.slice(1)));
-  if (!matches.length) return null;
-  const longest = Math.max(...matches.map((c) => c.dial.length));
-  const best = matches.filter((c) => c.dial.length === longest);
-  return best.find((c) => c.iso === preferred) ?? best[0];
+/** A saved number as the phone input shows it. Values that aren't one plain number stay whole in the number box. */
+export function splitPhone(value: string, preferred: string) {
+  const international = splitInternational(value, preferred);
+  if (international) return { ...international, number: tidyNumber(international.code, international.iso, international.number), international: true };
+  const code = countryByIso(preferred).dial.slice(1);
+  return { iso: preferred, code, number: tidyNumber(code, preferred, value.trim()), international: false };
 }
 
-/** Swaps the number's calling code, dropping a code or local leading 0 it already has. */
-export function withCountryCode(value: string, country: Country, previous?: Country | null) {
-  let rest = value.trim();
-  const code = previous ?? detectCountry(rest);
-  if (code && internationalDigits(rest)?.startsWith(code.dial.slice(1))) {
-    let toDrop = code.dial.length - 1 + (rest.startsWith("00") ? 2 : 0);
-    let i = 0;
-    while (toDrop > 0 && i < rest.length) {
-      if (/\d/.test(rest[i])) toDrop--;
-      i++;
-    }
-    rest = rest.slice(i);
-  }
-  rest = rest.replace(/^[\s+-]+/, "").replace(/^0+(?=\d)/, "");
-  return `${country.dial} ${rest}`;
+/** What gets saved: nothing without a number; no code box means the number exactly as typed. */
+export function composePhone(code: string, number: string) {
+  const n = number.trim();
+  if (!/\d/.test(n)) return "";
+  return code ? `+${code} ${n}` : n;
 }
 
-/** What gets saved: a box holding only a calling code counts as empty. */
-export function cleanPhone(value: string) {
-  const v = value.trim();
-  if (!/\d/.test(v)) return "";
-  const digits = internationalDigits(v);
-  if (digits && COUNTRIES.some((c) => c.dial.slice(1) === digits)) return "";
-  return v;
+// E.164: a phone number never has more digits than this, country code included.
+const MAX_DIGITS = 15;
+
+/**
+ * The digits without the "0" that is only dialled inside the country. Countries where a 0 is part
+ * of the number itself, like Italy (+39 06 ...), have no such prefix and keep it.
+ */
+export function withoutTrunkZero(digits: string, iso: string) {
+  const metadata = new Metadata();
+  metadata.selectNumberingPlan(iso as CountryCode);
+  // The library has this at runtime but leaves it out of its types; its version is pinned.
+  // Countries without a prefix may give undefined or the number 0 here.
+  const prefix: unknown = (metadata.numberingPlan as unknown as { nationalPrefix(): unknown }).nationalPrefix();
+  if (typeof prefix !== "string" || !prefix.startsWith("0")) return digits;
+  if (prefix === "0") return digits.replace(/^0+/, "");
+  return digits.startsWith(prefix) ? digits.slice(prefix.length) : digits;
+}
+
+/** Digits spaced the way the country writes them, for as much of the number as there is. */
+export function formatDigits(code: string, digits: string) {
+  const limited = digits.slice(0, MAX_DIGITS - code.length);
+  const international = new AsYouType().input(`+${code}${limited}`);
+  let codeLeft = code.length;
+  let i = 0;
+  while (codeLeft > 0 && i < international.length) if (/\d/.test(international[i++])) codeLeft--;
+  return international.slice(i).replace(/\D+/g, " ").trim();
+}
+
+/** Whether these digits make a real number for the code. */
+export function isValidDigits(code: string, digits: string) {
+  return parsePhoneNumberFromString(`+${code}${digits}`)?.isValid() ?? false;
+}
+
+/**
+ * Whether the next digit overruns a finished mobile number. Only mobiles count: a landline can
+ * be valid at one length and again a few digits later, so stopping there would cut real numbers.
+ */
+export function overrunsMobile(code: string, previous: string, digits: string) {
+  return digits.length === previous.length + 1 && digits.startsWith(previous)
+    && isValidMobile(`+${code}${previous}`) && !isValidDigits(code, digits);
+}
+
+/** One plain number in the country's format; anything else (two numbers, words) comes back untouched. */
+export function tidyNumber(code: string, iso: string, raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits || /[^\d\s().-]/.test(raw) || !countryForCode(code, iso)) return raw;
+  const national = withoutTrunkZero(digits, iso);
+  return national.length + code.length > MAX_DIGITS ? raw : formatDigits(code, national);
 }
