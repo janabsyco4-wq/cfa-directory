@@ -4,6 +4,7 @@ import Member from "@/models/Member";
 import { requireAdmin } from "@/lib/admin";
 import { normalizeFrame } from "@/lib/photoFrame";
 import { adminMemberQuery, memberSaveError, revalidateMemberPages } from "@/lib/members";
+import { districtOptions } from "@/lib/districts";
 import { formatMemberNo } from "@/lib/memberNumber";
 import { cardNumberQuery } from "@/lib/verification";
 
@@ -18,14 +19,13 @@ export async function GET(req: NextRequest) {
     const limit    = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
     const query    = adminMemberQuery(searchParams);
 
-    const total   = await Member.countDocuments(query);
-    const members = await Member.find(query)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
+    const [total, members, districts] = await Promise.all([
+      Member.countDocuments(query),
+      Member.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      Member.distinct("district"),
+    ]);
 
-    return NextResponse.json({ members, total, page, totalPages: Math.ceil(total / limit) });
+    return NextResponse.json({ members, total, page, totalPages: Math.ceil(total / limit), districts: districtOptions(districts) });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

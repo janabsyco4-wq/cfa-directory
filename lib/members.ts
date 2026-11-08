@@ -4,6 +4,8 @@ import { connectDB } from "@/lib/mongodb";
 import Member from "@/models/Member";
 import { PAGE_SIZE, type DirectoryPage, type PublicMember, type PublicProfile, type SortKey } from "@/lib/directory";
 import { normalizeFrame } from "@/lib/photoFrame";
+import { districtCondition, requestedDistricts } from "@/lib/districts";
+import { SITE_URL } from "@/lib/site";
 
 export const PUBLIC_LIST_FIELDS = "membershipNo firstName lastName membershipCategory photo photoFrame businessName district";
 const PUBLIC_PROFILE_FIELDS = `${PUBLIC_LIST_FIELDS} businessType joinedDate designation department`;
@@ -43,17 +45,18 @@ function toPublic(m: any): PublicMember {
   };
 }
 
-/** Admin list/export filter from ?search=&category=&status=&card= (shared so exports match the list). */
+/** Admin list/export filter from ?search=&category=&status=&district= (district may repeat); shared so exports match the list. */
 export function adminMemberQuery(params: URLSearchParams) {
-  const search   = (params.get("search") ?? "").trim().slice(0, 100);
-  const category = params.get("category") ?? "";
-  const status   = params.get("status") ?? "";
-  const card     = params.get("card") ?? "";
+  const search    = (params.get("search") ?? "").trim().slice(0, 100);
+  const category  = params.get("category") ?? "";
+  const status    = params.get("status") ?? "";
+  const districts = requestedDistricts(params);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const query: any = {};
   if (category && category !== "All") query.membershipCategory = category;
   if (status   && status   !== "All") query.status = status;
+  if (districts.length) query.district = districtCondition(districts);
   if (search) {
     const rx = { $regex: escapeRegex(search), $options: "i" };
     query.$or = [
@@ -64,11 +67,19 @@ export function adminMemberQuery(params: URLSearchParams) {
       { cnic:         rx },
     ];
   }
-  // Card filter: both sides uploaded, or at least one side missing.
-  const blank = { $in: ["", null] };
-  if (card === "uploaded") query.$and = [{ cardFront: { $nin: ["", null] } }, { cardBack: { $nin: ["", null] } }];
-  if (card === "missing")  query.$and = [{ $or: [{ cardFront: blank }, { cardBack: blank }] }];
   return query;
+}
+
+/** A member's photo as a JPEG (or the stored file for site-hosted photos). Throws if it can't be read. */
+export async function fetchMemberPhoto(photo: string) {
+  const cloudinary = photo.startsWith("https://res.cloudinary.com/");
+  if (!cloudinary && !photo.startsWith("/")) throw new Error("Unrecognised photo location");
+  const url = cloudinary ? photo.replace("/upload/", "/upload/f_jpg,q_95/") : `${SITE_URL}${encodeURI(photo)}`;
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
+  const type = (res.headers.get("content-type") ?? "").split(";")[0];
+  if (!res.ok || !type.startsWith("image/")) throw new Error(`Photo unavailable (${res.status})`);
+  const ext = type === "image/jpeg" ? "jpg" : type.slice("image/".length).replace(/\W.*$/, "");
+  return { bytes: Buffer.from(await res.arrayBuffer()), type, ext };
 }
 
 /** Turns a failed member save into a message an admin can act on. */

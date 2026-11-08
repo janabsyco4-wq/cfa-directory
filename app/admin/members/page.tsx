@@ -5,13 +5,16 @@ import Link from "next/link";
 import {
   Search, X, UserPlus, Pencil, Trash2,
   ChevronLeft, ChevronRight, SlidersHorizontal,
-  AlertTriangle, Loader2, CreditCard, FileSpreadsheet,
+  AlertTriangle, Loader2, CreditCard, Download, FileSpreadsheet, FileText,
 } from "lucide-react";
 import CategoryBadge from "@/components/CategoryBadge";
 import MemberAvatar from "@/components/admin/MemberAvatar";
+import DownloadButton from "@/components/admin/DownloadButton";
+import MemberDownloadSheet from "@/components/admin/MemberDownloadSheet";
 import type { MembershipCategory } from "@/models/Member";
 import type { PhotoFrame } from "@/lib/photoFrame";
 import { MEMBER_STATUSES } from "@/lib/memberStatus";
+import { cardTier } from "@/lib/cardTier";
 
 const CATEGORIES = ["All","Corporate","Executive","Associate","Overseas","Women","Student","Honorary Member"];
 const STATUSES   = ["All", ...MEMBER_STATUSES];
@@ -39,6 +42,7 @@ interface ApiResponse {
   total: number;
   page: number;
   totalPages: number;
+  districts?: string[];
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -60,25 +64,29 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function CardStatus({ member }: { member: Member }) {
-  const sides = Number(!!member.cardFront) + Number(!!member.cardBack);
+  const custom = !!(member.cardFront || member.cardBack);
+  const gold = cardTier(member.membershipCategory) === "gold";
   return (
     <Link
       href={`/admin/cards?member=${member._id}`}
       aria-label={`Membership card for ${member.firstName} ${member.lastName}`}
       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-xs font-semibold whitespace-nowrap transition hover:brightness-125 ${
-        sides === 2 ? "bg-sky-500/10 text-sky-300 border-sky-500/20" : "bg-gray-800 text-gray-500 border-gray-700"
+        custom ? "bg-sky-500/10 text-sky-300 border-sky-500/20" : gold ? "bg-amber-500/10 text-amber-300 border-amber-500/20" : "bg-gray-700/40 text-gray-300 border-gray-600"
       }`}
     >
       <CreditCard size={12} aria-hidden />
-      {sides === 2 ? "Uploaded" : sides === 1 ? "1 of 2" : "Missing"}
+      {custom ? "Custom" : gold ? "Gold" : "Silver"}
     </Link>
   );
 }
 
 export default function AdminMembersPage() {
   const [search, setSearch]     = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const [downloadFor, setDownloadFor] = useState<Member | null>(null);
   const [category, setCategory] = useState("All");
   const [status, setStatus]     = useState("All");
+  const [district, setDistrict] = useState("All");
   const [page, setPage]         = useState(1);
   const [data, setData]         = useState<ApiResponse | null>(null);
   const [loading, setLoading]   = useState(true);
@@ -94,7 +102,7 @@ export default function AdminMembersPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { setPage(1); }, [debounced, category, status]);
+  useEffect(() => { setPage(1); }, [debounced, category, status, district]);
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
@@ -104,12 +112,13 @@ export default function AdminMembersPage() {
         search: debounced,
         category: category === "All" ? "" : category,
         status:   status   === "All" ? "" : status,
+        district: district === "All" ? "" : district,
       });
       const res  = await fetch(`/api/admin/members?${p}`);
       const json = await res.json();
       if (res.ok) setData(json);
     } finally { setLoading(false); }
-  }, [page, debounced, category, status]);
+  }, [page, debounced, category, status, district]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
@@ -123,11 +132,12 @@ export default function AdminMembersPage() {
   }
 
   // Excel export follows whatever the list is currently filtered to.
-  const filtered = !!debounced.trim() || category !== "All" || status !== "All";
+  const filtered = !!debounced.trim() || category !== "All" || status !== "All" || district !== "All";
   const exportHref = `/api/admin/members/export?${new URLSearchParams({
     search: debounced.trim(),
     category: category === "All" ? "" : category,
     status: status === "All" ? "" : status,
+    district: district === "All" ? "" : district,
   })}`;
 
   return (
@@ -141,16 +151,22 @@ export default function AdminMembersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <a
+          <DownloadButton
+            href="/api/admin/forms/membership"
+            title="Download the blank membership application form (PDF)"
+            className="inline-flex items-center gap-2 min-h-10 px-3.5 sm:px-4 rounded-xl border border-gray-700 bg-gray-900 text-gray-200 text-sm font-semibold hover:bg-gray-800 transition"
+            icon={<FileText size={15} className="text-green-400" aria-hidden />}
+            label={<><span className="sm:hidden">Form</span><span className="hidden sm:inline">Blank form</span></>}
+            onError={setDownloadError}
+          />
+          <DownloadButton
             href={exportHref}
-            download
             title={filtered ? "Export the members matching the current filters" : "Export every member"}
             className="inline-flex items-center gap-2 min-h-10 px-3.5 sm:px-4 rounded-xl border border-gray-700 bg-gray-900 text-gray-200 text-sm font-semibold hover:bg-gray-800 transition"
-          >
-            <FileSpreadsheet size={15} className="text-green-400" aria-hidden />
-            <span className="sm:hidden">Excel</span>
-            <span className="hidden sm:inline">{filtered ? "Export filtered to Excel" : "Export all to Excel"}</span>
-          </a>
+            icon={<FileSpreadsheet size={15} className="text-green-400" aria-hidden />}
+            label={<><span className="sm:hidden">Excel</span><span className="hidden sm:inline">{filtered ? "Export filtered to Excel" : "Export all to Excel"}</span></>}
+            onError={setDownloadError}
+          />
           <Link
             href="/admin/members/new"
             className="hidden sm:inline-flex items-center gap-2 min-h-10 px-4 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-500 transition"
@@ -160,6 +176,19 @@ export default function AdminMembersPage() {
           </Link>
         </div>
       </div>
+
+      {downloadError && (
+        <div role="alert" className="flex items-start justify-between gap-3 mb-4 rounded-xl border border-red-500/30 bg-red-500/10 max-md:bg-red-950 max-md:fixed max-md:bottom-4 max-md:inset-x-4 max-md:z-50 max-md:mb-0 px-4 py-3 text-sm text-red-300">
+          <span>{downloadError}</span>
+          <button type="button" onClick={() => setDownloadError("")} aria-label="Dismiss" className="shrink-0 text-red-300 hover:text-white">
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
+      {downloadFor && (
+        <MemberDownloadSheet member={downloadFor} onClose={() => setDownloadFor(null)} onError={setDownloadError} />
+      )}
 
       {/* Filters */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3 sm:p-4 mb-4 sm:mb-5">
@@ -199,6 +228,15 @@ export default function AdminMembersPage() {
               className="w-full md:w-auto min-h-11 bg-gray-800 border border-gray-700 text-gray-300 text-base sm:text-sm rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition"
             >
               {STATUSES.map((s) => <option key={s} value={s}>{s === "All" ? "All statuses" : s}</option>)}
+            </select>
+            <select
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              aria-label="Filter by district"
+              className="col-span-2 w-full md:w-auto min-h-11 bg-gray-800 border border-gray-700 text-gray-300 text-base sm:text-sm rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition"
+            >
+              <option value="All">All districts</option>
+              {data?.districts?.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
         </div>
@@ -260,6 +298,16 @@ export default function AdminMembersPage() {
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 justify-end">
+                        <DownloadButton
+                          href={`/api/admin/forms/membership?member=${m._id}`}
+                          ariaLabel={`Download filled form for ${m.firstName} ${m.lastName}`}
+                          busyLabel={`Preparing form for ${m.firstName} ${m.lastName}`}
+                          title="Download filled form (PDF)"
+                          className="p-2 rounded-lg text-gray-500 hover:bg-gray-700 hover:text-green-400 transition"
+                          icon={<FileText size={14} />}
+                          spinnerSize={14}
+                          onError={setDownloadError}
+                        />
                         <Link
                           href={`/admin/members/${m._id}/edit`}
                           aria-label={`Edit ${m.firstName} ${m.lastName}`}
@@ -296,37 +344,48 @@ export default function AdminMembersPage() {
             <p className="text-center text-gray-600 py-12 text-sm">No members found.</p>
           ) : (
             data?.members.map((m) => (
-              <div key={m._id} className="relative p-3 sm:p-4 flex items-center gap-3 active:bg-gray-800/60 transition">
+              <div key={m._id} className="relative p-3 sm:p-4 flex items-start gap-3 active:bg-gray-800/60 transition">
                 <MemberAvatar photo={m.photo} frame={m.photoFrame} firstName={m.firstName} lastName={m.lastName} size={52} />
                 <div className="flex-1 min-w-0">
+                  {/* Name and number wrap rather than cut off; the buttons sit on their own row below. */}
                   <Link
                     href={`/admin/members/${m._id}/edit`}
-                    className="block text-white text-sm font-semibold truncate after:absolute after:inset-0 after:content-['']"
+                    className="block text-white text-sm font-semibold leading-snug break-words after:absolute after:inset-0 after:content-['']"
                   >
                     {m.firstName} {m.lastName}
                   </Link>
-                  <p className="text-gray-500 text-[11px] font-mono truncate">{m.membershipNo}{m.district ? ` · ${m.district}` : ""}</p>
+                  <p className="mt-0.5 text-gray-500 text-[11px] font-mono break-words">
+                    <span className="whitespace-nowrap">{m.membershipNo}</span>{m.district ? ` · ${m.district}` : ""}
+                  </p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <CategoryBadge category={m.membershipCategory} size="sm" />
                     <StatusPill status={m.status} />
                     <span className="relative z-10"><CardStatus member={m} /></span>
                   </div>
-                </div>
-                <div className="relative z-10 flex items-center">
-                  <Link
-                    href={`/admin/members/${m._id}/edit`}
-                    aria-label={`Edit ${m.firstName} ${m.lastName}`}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-700 hover:text-green-400 transition"
-                  >
-                    <Pencil size={16} />
-                  </Link>
-                  <button
-                    onClick={() => { setDeleteId(m._id); setDeleteName(`${m.firstName} ${m.lastName}`); }}
-                    aria-label={`Delete ${m.firstName} ${m.lastName}`}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-400 transition"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="relative z-10 mt-1 -mr-2 flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setDownloadFor(m)}
+                      aria-label={`Download for ${m.firstName} ${m.lastName}`}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-700 hover:text-green-400 transition"
+                    >
+                      <Download size={16} />
+                    </button>
+                    <Link
+                      href={`/admin/members/${m._id}/edit`}
+                      aria-label={`Edit ${m.firstName} ${m.lastName}`}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-700 hover:text-green-400 transition"
+                    >
+                      <Pencil size={16} />
+                    </Link>
+                    <button
+                      onClick={() => { setDeleteId(m._id); setDeleteName(`${m.firstName} ${m.lastName}`); }}
+                      aria-label={`Delete ${m.firstName} ${m.lastName}`}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-400 transition"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))
