@@ -1,4 +1,5 @@
-import { BadgeCheck, Building2, CalendarCheck, CalendarX, Download, Hash, ImageDown, MapPin, ShieldAlert, ShieldCheck, User } from "lucide-react";
+import { BadgeCheck, Building2, CalendarCheck, CalendarX, Hash, MapPin, ShieldAlert, ShieldCheck, User } from "lucide-react";
+import CardDownloads from "@/components/CardDownloads";
 import MemberPhoto from "@/components/MemberPhoto";
 import type { PhotoFrame } from "@/lib/photoFrame";
 
@@ -80,19 +81,7 @@ export default function VerificationResult({ member, orgName }: { member: Verifi
           <div className="mt-5 rounded-lg border border-line bg-canvas p-4">
             <p className="text-sm font-bold text-ink">Membership card</p>
             <p className="mt-0.5 text-xs text-muted">Print-ready PDF at standard ID-card size, front and back.</p>
-            <div className="mt-3 flex flex-col sm:flex-row gap-2">
-              <a href={`/api/cards/${member.id}?side=pdf`} download className="btn btn-primary justify-center !min-h-11">
-                <Download size={16} aria-hidden /> Download card
-              </a>
-              <div className="grid grid-cols-2 sm:flex gap-2">
-                <a href={`/api/cards/${member.id}?side=front`} download className="btn btn-outline justify-center !min-h-11 !px-3.5">
-                  <ImageDown size={15} aria-hidden /> Front
-                </a>
-                <a href={`/api/cards/${member.id}?side=back`} download className="btn btn-outline justify-center !min-h-11 !px-3.5">
-                  <ImageDown size={15} aria-hidden /> Back
-                </a>
-              </div>
-            </div>
+            <CardDownloads memberId={member.id} />
           </div>
         )}
 

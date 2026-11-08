@@ -15,7 +15,7 @@ async function failureMessage(res: Response) {
  * message, or "" when a new attempt starts.
  */
 export default function DownloadButton({
-  href, icon, label, busyLabel, ariaLabel, title, className, spinnerSize = 15, disabled = false, onStart, onDone, onError,
+  href, icon, label, busyLabel, ariaLabel, title, className, spinnerSize = 15, spinnerClassName = "text-green-400", disabled = false, onStart, onDone, onError,
 }: {
   href: string;
   icon: ReactNode;
@@ -25,6 +25,7 @@ export default function DownloadButton({
   title?: string;
   className: string;
   spinnerSize?: number;
+  spinnerClassName?: string;
   disabled?: boolean;
   onStart?: () => void;
   onDone?: () => void;
@@ -72,7 +73,7 @@ export default function DownloadButton({
       title={title}
       className={`${className} disabled:opacity-70 ${busy ? "disabled:cursor-wait" : "disabled:cursor-not-allowed"}`}
     >
-      {busy ? <Loader2 size={spinnerSize} className="animate-spin text-green-400" aria-hidden /> : icon}
+      {busy ? <Loader2 size={spinnerSize} className={`animate-spin ${spinnerClassName}`} aria-hidden /> : icon}
       {busy && label ? <span>{busyLabel ?? "Preparing..."}</span> : label}
     </button>
   );
