@@ -5,7 +5,7 @@ import Member from "@/models/Member";
 import type { VerificationRecord } from "@/components/VerificationResult";
 
 const VERIFY_FIELDS =
-  "membershipNo firstName lastName photo photoFrame membershipCategory designation businessName department district joinedDate expiryDate status cardFront cardBack";
+  "membershipNo firstName lastName photo photoFrame membershipCategory designation businessName department district joinedDate expiryDate status";
 
 export type VerifyBy = "card" | "cnic";
 
@@ -34,8 +34,6 @@ function toRecord(m: any): VerificationRecord {
     joinedDate: m.joinedDate ? new Date(m.joinedDate).toISOString() : undefined,
     expiryDate: expiry?.toISOString(),
     status,
-    // Only whether a card exists; the image URLs stay server-side and are served via /api/cards.
-    card: { front: !!m.cardFront, back: !!m.cardBack },
   };
 }
 

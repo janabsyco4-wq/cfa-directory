@@ -17,7 +17,6 @@ export interface VerificationRecord {
   joinedDate?: string;
   expiryDate?: string;
   status: "Active" | "Expired" | "Inactive" | "Pending";
-  card?: { front: boolean; back: boolean };
 }
 
 const STATUS = {
@@ -77,25 +76,21 @@ export default function VerificationResult({ member, orgName }: { member: Verifi
           ))}
         </dl>
 
-        {member.status === "Active" && (member.card?.front || member.card?.back) && (
+        {member.status === "Active" && (
           <div className="mt-5 rounded-lg border border-line bg-canvas p-4">
             <p className="text-sm font-bold text-ink">Membership card</p>
-            <p className="mt-0.5 text-xs text-muted">Print-ready PDF at standard ID-card size{member.card.front && member.card.back ? ", front and back" : ""}.</p>
+            <p className="mt-0.5 text-xs text-muted">Print-ready PDF at standard ID-card size, front and back.</p>
             <div className="mt-3 flex flex-col sm:flex-row gap-2">
               <a href={`/api/cards/${member.id}?side=pdf`} download className="btn btn-primary justify-center !min-h-11">
                 <Download size={16} aria-hidden /> Download card
               </a>
               <div className="grid grid-cols-2 sm:flex gap-2">
-                {member.card.front && (
-                  <a href={`/api/cards/${member.id}?side=front`} download className="btn btn-outline justify-center !min-h-11 !px-3.5">
-                    <ImageDown size={15} aria-hidden /> Front
-                  </a>
-                )}
-                {member.card.back && (
-                  <a href={`/api/cards/${member.id}?side=back`} download className="btn btn-outline justify-center !min-h-11 !px-3.5">
-                    <ImageDown size={15} aria-hidden /> Back
-                  </a>
-                )}
+                <a href={`/api/cards/${member.id}?side=front`} download className="btn btn-outline justify-center !min-h-11 !px-3.5">
+                  <ImageDown size={15} aria-hidden /> Front
+                </a>
+                <a href={`/api/cards/${member.id}?side=back`} download className="btn btn-outline justify-center !min-h-11 !px-3.5">
+                  <ImageDown size={15} aria-hidden /> Back
+                </a>
               </div>
             </div>
           </div>
