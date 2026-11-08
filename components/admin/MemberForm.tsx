@@ -12,6 +12,11 @@ import { DEFAULT_FRAME, normalizeFrame, type PhotoFrame } from "@/lib/photoFrame
 import { uploadImage } from "@/lib/uploadImage";
 import { MEMBER_STATUSES } from "@/lib/memberStatus";
 import { formatMemberNo, MEMBER_NO_EXAMPLE } from "@/lib/memberNumber";
+import { tidyText } from "@/lib/textCase";
+
+// Typed text that gets its spacing, capitals and known misspellings tidied when the admin leaves the box.
+const TIDY_FIELDS = ["firstName", "lastName", "fatherName", "designation", "businessName", "department", "businessType", "district", "address"] as const;
+type TidyField = (typeof TIDY_FIELDS)[number];
 
 export type MemberFormData = {
   membershipNo: string;
@@ -110,6 +115,13 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
     });
   }
 
+  function tidy(field: TidyField) {
+    setForm((prev) => {
+      const value = tidyText(prev[field] ?? "");
+      return value === prev[field] ? prev : { ...prev, [field]: value };
+    });
+  }
+
   function handleCnic(e: ChangeEvent<HTMLInputElement>) {
     set("cnic", formatCnic(e.target.value));
   }
@@ -169,6 +181,8 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
     setSaving(true);
     const payload = {
       ...form,
+      // Enter can submit without leaving the box, so tidy here as well.
+      ...Object.fromEntries(TIDY_FIELDS.map((f) => [f, tidyText(form[f] ?? "")])),
       fee: Number(form.fee),
       expiryDate: form.expiryDate || null,
       photoFrame: form.photo ? frame : undefined,
@@ -356,19 +370,19 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
             <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-4">Personal Information</p>
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="First Name" required>
-                <input value={form.firstName} onChange={(e) => set("firstName", e.target.value)}
+                <input value={form.firstName} onChange={(e) => set("firstName", e.target.value)} onBlur={() => tidy("firstName")}
                   placeholder="Ahmed" required className={inputCls} />
               </Field>
               <Field label="Last Name">
-                <input value={form.lastName} onChange={(e) => set("lastName", e.target.value)}
+                <input value={form.lastName} onChange={(e) => set("lastName", e.target.value)} onBlur={() => tidy("lastName")}
                   placeholder="Khan" className={inputCls} />
               </Field>
               <Field label="Father's Name">
-                <input value={form.fatherName} onChange={(e) => set("fatherName", e.target.value)}
+                <input value={form.fatherName} onChange={(e) => set("fatherName", e.target.value)} onBlur={() => tidy("fatherName")}
                   placeholder="Muhammad Khan" className={inputCls} />
               </Field>
               <Field label="Designation">
-                <input value={form.designation} onChange={(e) => set("designation", e.target.value)}
+                <input value={form.designation} onChange={(e) => set("designation", e.target.value)} onBlur={() => tidy("designation")}
                   placeholder="Director" className={inputCls} />
               </Field>
             </div>
@@ -379,19 +393,19 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
             <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-4">Organization & Location</p>
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Organization Name">
-                <input value={form.businessName} onChange={(e) => set("businessName", e.target.value)}
+                <input value={form.businessName} onChange={(e) => set("businessName", e.target.value)} onBlur={() => tidy("businessName")}
                   placeholder="AgroFarm Pakistan Pvt Ltd" className={inputCls} />
               </Field>
               <Field label="Department">
-                <input value={form.department} onChange={(e) => set("department", e.target.value)}
+                <input value={form.department} onChange={(e) => set("department", e.target.value)} onBlur={() => tidy("department")}
                   placeholder="Optional" className={inputCls} />
               </Field>
               <Field label="Business Type">
-                <input value={form.businessType} onChange={(e) => set("businessType", e.target.value)}
+                <input value={form.businessType} onChange={(e) => set("businessType", e.target.value)} onBlur={() => tidy("businessType")}
                   placeholder="Agricultural Farming" className={inputCls} />
               </Field>
               <Field label="District">
-                <input value={form.district} onChange={(e) => set("district", e.target.value)}
+                <input value={form.district} onChange={(e) => set("district", e.target.value)} onBlur={() => tidy("district")}
                   placeholder="Karachi" className={inputCls} />
               </Field>
             </div>
@@ -424,7 +438,7 @@ export default function MemberForm({ initialData, memberId, mode }: Props) {
               </div>
               <div className="sm:col-span-2">
                 <Field label="Address" required={rules.requireAddress}>
-                  <textarea value={form.address} onChange={(e) => set("address", e.target.value)}
+                  <textarea value={form.address} onChange={(e) => set("address", e.target.value)} onBlur={() => tidy("address")}
                     placeholder="House, street, area, city" rows={3}
                     className={`${inputCls} resize-none`} />
                 </Field>
