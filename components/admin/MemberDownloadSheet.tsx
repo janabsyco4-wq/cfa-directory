@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, FileText, ImageDown, X } from "lucide-react";
+import { Award, CreditCard, FileText, ImageDown, X } from "lucide-react";
 import DownloadButton from "@/components/admin/DownloadButton";
 
 const ROW = "flex w-full items-center gap-3 min-h-14 px-4 rounded-xl bg-gray-800 border border-gray-700 text-left text-white text-sm font-semibold active:bg-gray-700 transition";
@@ -22,6 +22,7 @@ export default function MemberDownloadSheet({
   const options = [
     { key: "form", label: "Form", hint: "Filled membership form (PDF)", href: `/api/admin/forms/membership?member=${member._id}`, icon: <FileText size={20} className={ICON} aria-hidden /> },
     { key: "card", label: "Card", hint: "Front and back (PDF)", href: `/api/cards/${member._id}?side=pdf`, icon: <CreditCard size={20} className={ICON} aria-hidden /> },
+    { key: "certificate", label: "Certificate", hint: "A4 membership certificate (PDF)", href: `/api/certificates/${member._id}?format=pdf`, icon: <Award size={20} className={ICON} aria-hidden /> },
     { key: "picture", label: "Picture", hint: "Member's photo", href: `/api/admin/members/${member._id}/photo`, icon: <ImageDown size={20} className={ICON} aria-hidden /> },
   ];
 

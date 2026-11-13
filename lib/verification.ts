@@ -1,11 +1,12 @@
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import { normalizeFrame } from "@/lib/photoFrame";
+import { notificationList } from "@/lib/notifications";
 import Member from "@/models/Member";
 import type { VerificationRecord } from "@/components/VerificationResult";
 
 const VERIFY_FIELDS =
-  "membershipNo firstName lastName photo photoFrame membershipCategory designation businessName department district joinedDate expiryDate status";
+  "membershipNo firstName lastName photo photoFrame membershipCategory designation businessName department district joinedDate expiryDate status notifications";
 
 export type VerifyBy = "card" | "cnic";
 
@@ -34,6 +35,7 @@ function toRecord(m: any): VerificationRecord {
     joinedDate: m.joinedDate ? new Date(m.joinedDate).toISOString() : undefined,
     expiryDate: expiry?.toISOString(),
     status,
+    notifications: notificationList(m.notifications),
   };
 }
 

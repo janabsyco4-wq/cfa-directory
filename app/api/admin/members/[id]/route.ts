@@ -36,6 +36,8 @@ export async function PUT(
     const { id } = await params;
     const body = await req.json();
     if (body.photoFrame) body.photoFrame = normalizeFrame(body.photoFrame);
+    // Notifications have their own endpoints; the form posts back a copy that may be stale.
+    delete body.notifications;
 
     // Check duplicate membershipNo (ignoring spacing/punctuation) or CNIC on OTHER documents; blank values are not identifiers.
     const keys = [

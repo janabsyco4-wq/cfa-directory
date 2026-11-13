@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import MemberForm, { MemberFormData } from "@/components/admin/MemberForm";
+import MemberDocuments, { type DocumentMember } from "@/components/admin/MemberDocuments";
 
 export default function EditMemberClient({ memberId }: { memberId: string }) {
-  const [data, setData]       = useState<MemberFormData | null>(null);
+  const [data, setData]       = useState<(MemberFormData & Pick<DocumentMember, "notifications">) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
 
@@ -49,5 +50,10 @@ export default function EditMemberClient({ memberId }: { memberId: string }) {
     );
   }
 
-  return <MemberForm mode="edit" memberId={memberId} initialData={data ?? undefined} />;
+  return (
+    <>
+      <MemberForm mode="edit" memberId={memberId} initialData={data ?? undefined} />
+      {data && <MemberDocuments memberId={memberId} member={data} />}
+    </>
+  );
 }

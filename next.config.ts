@@ -25,9 +25,11 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   devIndicators: false,
-  // Fonts and artwork read from disk by the membership card and form renderers.
+  // Fonts and artwork read from disk by the card, certificate, notification and form renderers.
   outputFileTracingIncludes: {
     "/api/cards/*": ["./assets/**/*"],
+    "/api/certificates/*": ["./assets/**/*"],
+    "/api/notifications/*": ["./assets/**/*"],
     "/api/admin/forms/*": ["./assets/**/*"],
   },
   experimental: {

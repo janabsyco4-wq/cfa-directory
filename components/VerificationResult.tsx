@@ -1,7 +1,10 @@
 import { BadgeCheck, Building2, CalendarCheck, CalendarX, Hash, MapPin, ShieldAlert, ShieldCheck, User } from "lucide-react";
 import CardDownloads from "@/components/CardDownloads";
+import CertificateDownload from "@/components/CertificateDownload";
+import MemberNotifications from "@/components/MemberNotifications";
 import MemberPhoto from "@/components/MemberPhoto";
 import type { PhotoFrame } from "@/lib/photoFrame";
+import type { NotificationRecord } from "@/lib/notifications";
 
 // Everything a public verification may reveal. Contact details and IDs are deliberately absent.
 export interface VerificationRecord {
@@ -18,6 +21,8 @@ export interface VerificationRecord {
   joinedDate?: string;
   expiryDate?: string;
   status: "Active" | "Expired" | "Inactive" | "Pending";
+  /** Appointments the Chamber has notified, newest first. */
+  notifications: NotificationRecord[];
 }
 
 const STATUS = {
@@ -82,6 +87,11 @@ export default function VerificationResult({ member, orgName }: { member: Verifi
             <p className="text-sm font-bold text-ink">Membership card</p>
             <p className="mt-0.5 text-xs text-muted">Print-ready PDF at standard ID-card size, front and back.</p>
             <CardDownloads memberId={member.id} />
+            <div className="mt-4 pt-4 border-t border-line">
+              <p className="text-sm font-bold text-ink">Membership certificate</p>
+              <p className="mt-0.5 text-xs text-muted">A4 certificate with the Chamber&apos;s seal, ready to print and frame.</p>
+              <CertificateDownload memberId={member.id} />
+            </div>
           </div>
         )}
 
@@ -89,6 +99,8 @@ export default function VerificationResult({ member, orgName }: { member: Verifi
           Contact details are not shown. This page confirms membership only and is not a member directory.
         </p>
       </div>
+
+      {member.notifications.length > 0 && <MemberNotifications items={member.notifications} />}
     </article>
   );
 }

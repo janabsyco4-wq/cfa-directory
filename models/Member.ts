@@ -38,7 +38,34 @@ export interface IMember extends Document {
   cardFront: string;
   cardBack: string;
   verifyToken?: string;
+  notifications?: IMemberNotification[];
 }
+
+/** An appointment notified by the Chamber; shown on the member's verification page. */
+export interface IMemberNotification {
+  _id: mongoose.Types.ObjectId;
+  number: string;
+  honorific: string;
+  relation: "S/O" | "D/O" | "W/O";
+  relativeName: string;
+  post: string;
+  unit: string;
+  from: Date;
+  to: Date;
+  issuedAt: Date;
+}
+
+const NotificationSchema = new Schema<IMemberNotification>({
+  number: { type: String, required: true },
+  honorific: { type: String, default: "" },
+  relation: { type: String, enum: ["S/O", "D/O", "W/O"], default: "S/O" },
+  relativeName: { type: String, default: "" },
+  post: { type: String, required: true },
+  unit: { type: String, default: "" },
+  from: { type: Date, required: true },
+  to: { type: Date, required: true },
+  issuedAt: { type: Date, default: Date.now },
+});
 
 const MemberSchema = new Schema<IMember>(
   {
@@ -88,6 +115,7 @@ const MemberSchema = new Schema<IMember>(
     cardBack: { type: String, default: "" },
     // Token from cards printed by the previous portal (members.cfapak.org/verify/<token>), kept so those QR codes still work.
     verifyToken: { type: String, default: undefined, index: { sparse: true } },
+    notifications: { type: [NotificationSchema], default: undefined },
   },
   { timestamps: true }
 );
