@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Search, X, UserPlus, Pencil, Trash2,
   ChevronLeft, ChevronRight, SlidersHorizontal,
-  AlertTriangle, Loader2, CreditCard, Download, FileSpreadsheet, FileText,
+  AlertTriangle, Award, Loader2, CreditCard, Download, FileSpreadsheet, FileText,
 } from "lucide-react";
 import CategoryBadge from "@/components/CategoryBadge";
 import MemberAvatar from "@/components/admin/MemberAvatar";
@@ -89,7 +89,8 @@ export default function AdminMembersPage() {
   const [district, setDistrict] = useState("All");
   const [page, setPage]         = useState(1);
   const [data, setData]         = useState<ApiResponse | null>(null);
-  const [loading, setLoading]   = useState(true);
+  const [loadedKey, setLoadedKey] = useState("");
+  const [reload, setReload]     = useState(0);
   const [debounced, setDebounced] = useState("");
 
   // Delete state
@@ -97,30 +98,43 @@ export default function AdminMembersPage() {
   const [deleteName, setDeleteName] = useState("");
   const [deleting, setDeleting]     = useState(false);
 
+  // A new search or filter starts again from page 1, in the same update, so the list loads once.
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search), 350);
+    const t = setTimeout(() => { setDebounced(search); setPage(1); }, 350);
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { setPage(1); }, [debounced, category, status, district]);
+  function filterBy(set: (value: string) => void) {
+    return (value: string) => { set(value); setPage(1); };
+  }
 
-  const fetchMembers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const p = new URLSearchParams({
-        page: String(page), limit: "20",
-        search: debounced,
-        category: category === "All" ? "" : category,
-        status:   status   === "All" ? "" : status,
-        district: district === "All" ? "" : district,
-      });
-      const res  = await fetch(`/api/admin/members?${p}`);
-      const json = await res.json();
-      if (res.ok) setData(json);
-    } finally { setLoading(false); }
-  }, [page, debounced, category, status, district]);
+  const query = new URLSearchParams({
+    page: String(page), limit: "20",
+    search: debounced,
+    category: category === "All" ? "" : category,
+    status:   status   === "All" ? "" : status,
+    district: district === "All" ? "" : district,
+  }).toString();
+  const requestKey = `${query}#${reload}`;
+  // Loading until the response for the current list arrives.
+  const loading = loadedKey !== requestKey;
 
-  useEffect(() => { fetchMembers(); }, [fetchMembers]);
+  useEffect(() => {
+    let current = true;
+    (async () => {
+      try {
+        const res  = await fetch(`/api/admin/members?${query}`);
+        const json = await res.json();
+        if (current && res.ok) setData(json);
+      } catch {
+        // Keep showing the last list; the spinner stops below.
+      } finally {
+        // Ignore answers to requests the list has moved on from, so they can't overwrite newer results.
+        if (current) setLoadedKey(requestKey);
+      }
+    })();
+    return () => { current = false; };
+  }, [query, requestKey]);
 
   async function confirmDelete() {
     if (!deleteId) return;
@@ -128,7 +142,7 @@ export default function AdminMembersPage() {
     await fetch(`/api/admin/members/${deleteId}`, { method: "DELETE" });
     setDeleteId(null);
     setDeleting(false);
-    fetchMembers();
+    setReload((n) => n + 1);
   }
 
   // Excel export follows whatever the list is currently filtered to.
@@ -215,7 +229,7 @@ export default function AdminMembersPage() {
             <SlidersHorizontal size={14} className="text-gray-500 flex-shrink-0 hidden md:block" aria-hidden />
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => filterBy(setCategory)(e.target.value)}
               aria-label="Filter by category"
               className="w-full md:w-auto min-h-11 bg-gray-800 border border-gray-700 text-gray-300 text-base sm:text-sm rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition"
             >
@@ -223,7 +237,7 @@ export default function AdminMembersPage() {
             </select>
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(e) => filterBy(setStatus)(e.target.value)}
               aria-label="Filter by status"
               className="w-full md:w-auto min-h-11 bg-gray-800 border border-gray-700 text-gray-300 text-base sm:text-sm rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition"
             >
@@ -231,7 +245,7 @@ export default function AdminMembersPage() {
             </select>
             <select
               value={district}
-              onChange={(e) => setDistrict(e.target.value)}
+              onChange={(e) => filterBy(setDistrict)(e.target.value)}
               aria-label="Filter by district"
               className="col-span-2 w-full md:w-auto min-h-11 bg-gray-800 border border-gray-700 text-gray-300 text-base sm:text-sm rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition"
             >
@@ -305,6 +319,16 @@ export default function AdminMembersPage() {
                           title="Download filled form (PDF)"
                           className="p-2 rounded-lg text-gray-500 hover:bg-gray-700 hover:text-green-400 transition"
                           icon={<FileText size={14} />}
+                          spinnerSize={14}
+                          onError={setDownloadError}
+                        />
+                        <DownloadButton
+                          href={`/api/certificates/${m._id}?format=pdf`}
+                          ariaLabel={`Download certificate for ${m.firstName} ${m.lastName}`}
+                          busyLabel={`Preparing certificate for ${m.firstName} ${m.lastName}`}
+                          title="Download certificate (PDF)"
+                          className="p-2 rounded-lg text-gray-500 hover:bg-gray-700 hover:text-green-400 transition"
+                          icon={<Award size={14} />}
                           spinnerSize={14}
                           onError={setDownloadError}
                         />
