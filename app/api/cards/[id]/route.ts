@@ -1,3 +1,4 @@
+import { withDownloadSignal } from "@/lib/downloadSignal";
 import { NextRequest, NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/mongodb";
@@ -10,7 +11,7 @@ import { renderCard, type CardSide } from "@/lib/cardDesign";
 // GET /api/cards/:id?side=pdf|front|back[&view=1] — a member's card: uploaded artwork when
 // there is some for that side, otherwise the generated design. view=1 shows it inline.
 // Public for valid (Active, unexpired) memberships; admins can get any member's card.
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function getFile(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const side = req.nextUrl.searchParams.get("side") ?? "pdf";
   const inline = req.nextUrl.searchParams.get("view") === "1";
@@ -58,3 +59,5 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "The card could not be prepared. Please try again." }, { status: 502 });
   }
 }
+
+export const GET = withDownloadSignal(getFile);

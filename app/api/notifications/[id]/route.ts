@@ -1,3 +1,4 @@
+import { withDownloadSignal } from "@/lib/downloadSignal";
 import { NextRequest, NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/mongodb";
@@ -9,7 +10,7 @@ import { toNotificationRecord } from "@/lib/notifications";
 
 // GET /api/notifications/:id?format=pdf|png|preview[&view=1] — one issued notification.
 // Public: notifications are shown on the member's verification page.
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function getFile(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const format = docFormat(req.nextUrl.searchParams.get("format"));
   if (!isValidObjectId(id) || !format) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -32,3 +33,5 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "The notification could not be prepared. Please try again." }, { status: 502 });
   }
 }
+
+export const GET = withDownloadSignal(getFile);

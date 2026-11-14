@@ -1,9 +1,10 @@
+import { withDownloadSignal } from "@/lib/downloadSignal";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { buildMembersSheet } from "@/lib/exports";
 
 // GET /api/admin/members/export?search=&category=&status=&district= — the member data as an Excel sheet.
-export async function GET(req: NextRequest) {
+async function getFile(req: NextRequest) {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
@@ -21,3 +22,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Export failed. Please try again." }, { status: 500 });
   }
 }
+
+export const GET = withDownloadSignal(getFile);

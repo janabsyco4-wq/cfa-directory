@@ -1,9 +1,10 @@
+import { withDownloadSignal } from "@/lib/downloadSignal";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { buildMembershipFormPdf } from "@/lib/formDesign";
 
 // GET /api/admin/forms/membership[?member=id] — the application form as a PDF, blank or filled in.
-export async function GET(req: NextRequest) {
+async function getFile(req: NextRequest) {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
@@ -24,3 +25,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "The form could not be prepared. Please try again." }, { status: 502 });
   }
 }
+
+export const GET = withDownloadSignal(getFile);

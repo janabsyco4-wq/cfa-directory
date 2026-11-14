@@ -3,16 +3,43 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 
-async function failureMessage(res: Response) {
-  if (res.status === 401) return "Your session has ended. Please sign in again to download.";
-  const body = await res.json().catch(() => null);
-  return body?.error ?? "The download could not be prepared. Please try again.";
+const GENERIC_FAILURE = "The download could not be prepared. Please try again.";
+// Files take up to ~10s to draw; past this the browser may have handed the download to the
+// system (in-app browsers do), so the button just stops waiting.
+const WAIT_MS = 60_000;
+
+function readCookie(name: string) {
+  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/** The server's "ok" / "error:<status>:<message>" cookie for this download, or null on timeout. */
+async function waitForSignal(name: string) {
+  const until = Date.now() + WAIT_MS;
+  while (Date.now() < until) {
+    const value = readCookie(name);
+    if (value !== null) {
+      document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+      return value;
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return null;
+}
+
+function failureMessage(signal: string) {
+  const [, status, ...rest] = signal.split(":");
+  if (status === "401") return "Your session has ended. Please sign in again to download.";
+  return rest.join(":") || GENERIC_FAILURE;
 }
 
 /**
- * Fetches a generated file and saves it, showing progress on the button itself.
- * The button can't be pressed again until the file arrives. onError gets the failure
- * message, or "" when a new attempt starts.
+ * Downloads a generated file, showing progress on the button itself. The button opens the
+ * file as a plain link that the server answers as an attachment, because phones and in-app
+ * browsers show fetched (blob) PDFs in a preview instead of saving them; a cookie from the
+ * server (see lib/downloadSignal) says when the file arrived or why it couldn't be made.
+ * The button can't be pressed again meanwhile. onError gets the failure message, or "" when
+ * a new attempt starts.
  */
 export default function DownloadButton({
   href, icon, label, busyLabel, ariaLabel, title, className, spinnerSize = 15, spinnerClassName = "text-green-400", disabled = false, onStart, onDone, onError,
@@ -42,18 +69,16 @@ export default function DownloadButton({
     onStart?.();
     onError("");
     try {
-      const res = await fetch(href);
-      if (!res.ok) {
-        onError(await failureMessage(res));
-        return;
-      }
-      const name = res.headers.get("content-disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "download";
-      const url = URL.createObjectURL(await res.blob());
+      const token = Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join("");
       const a = document.createElement("a");
-      a.href = url;
-      a.download = name;
+      a.href = `${href}${href.includes("?") ? "&" : "?"}dl=${token}`;
+      // Empty: keep the file name the server gives.
+      a.download = "";
+      document.body.appendChild(a);
       a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      a.remove();
+      const signal = await waitForSignal(`dl_${token}`);
+      if (signal?.startsWith("error:")) onError(failureMessage(signal));
     } catch {
       onError("The download failed. Check your connection and try again.");
     } finally {

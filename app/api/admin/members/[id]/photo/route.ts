@@ -1,3 +1,4 @@
+import { withDownloadSignal } from "@/lib/downloadSignal";
 import { NextRequest, NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/mongodb";
@@ -7,7 +8,7 @@ import { cardFileName } from "@/lib/cardFile";
 import { fetchMemberPhoto } from "@/lib/members";
 
 // GET /api/admin/members/:id/photo — the member's photo as a named file.
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function getFile(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
@@ -34,3 +35,5 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "The picture could not be downloaded. Please try again." }, { status: 502 });
   }
 }
+
+export const GET = withDownloadSignal(getFile);
