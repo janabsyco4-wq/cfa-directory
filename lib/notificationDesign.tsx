@@ -5,7 +5,7 @@ import { SITE_URL } from "@/lib/site";
 import { pronouns, type NotificationRecord } from "@/lib/notifications";
 import {
   clean, DEFAULT_THEME, Divider, DOC_THEMES, DOC_W, dottedDate, GOLD, GOLD_TEXT, loadDocAssets, LOGO_RATIO, longDate, MAROON,
-  Page, Paragraph, qrDataUrl, renderDoc, Seal, SignatureBlock, VerifyQr, type DocTheme, type DocThemeKey, type Run,
+  Page, Paragraph, qrDataUrl, renderDoc, Seal, SignatureBlock, VerifyQr, type DocFormat, type DocTheme, type DocThemeKey, type Run,
 } from "@/lib/docArt";
 
 export interface NotificationMemberData {
@@ -90,13 +90,14 @@ function Notification({ m, n, t, logo, signature, stamp, glyphs, qr, president }
   );
 }
 
-export async function renderNotification(m: NotificationMemberData, n: NotificationRecord, scale: number, president?: string, theme: DocThemeKey = DEFAULT_THEME): Promise<Buffer> {
+export async function renderNotification(m: NotificationMemberData, n: NotificationRecord, format: DocFormat, president?: string, theme: DocThemeKey = DEFAULT_THEME): Promise<Buffer> {
   const t = DOC_THEMES[theme];
   const a = await loadDocAssets();
   const qr = await qrDataUrl(`${SITE_URL}/verify/${m.id}#notifications`, t.deep);
   return renderDoc(
     <Notification m={m} n={n} t={t} logo={a.logo} signature={a.signature} stamp={a.stamp} glyphs={a.sealGlyphs} qr={qr} president={clean(president) || undefined} />,
-    scale,
+    format,
     a.fonts,
+    `Notification ${n.number}`,
   );
 }

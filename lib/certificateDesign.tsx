@@ -5,7 +5,7 @@ import type { FrameStyle } from "@/lib/docFrames";
 import { SITE_URL } from "@/lib/site";
 import {
   clean, DEFAULT_THEME, Divider, DOC_THEMES, DOC_W, fitSize, GOLD, GOLD_TEXT, loadDocAssets, LOGO_RATIO, longDate, Page,
-  Paragraph, qrDataUrl, renderDoc, Seal, SignatureBlock, VerifyQr, type DocTheme, type DocThemeKey, type DocTier,
+  Paragraph, qrDataUrl, renderDoc, Seal, SignatureBlock, VerifyQr, type DocFormat, type DocTheme, type DocThemeKey, type DocTier,
 } from "@/lib/docArt";
 
 export interface CertificateMemberData {
@@ -147,14 +147,15 @@ function Certificate({ m, t, tier, frame, logo, signature, stamp, glyphs, qr, pr
   );
 }
 
-export async function renderCertificate(m: CertificateMemberData, scale: number, president?: string, theme?: DocThemeKey, frame: FrameStyle = "swoosh"): Promise<Buffer> {
+export async function renderCertificate(m: CertificateMemberData, format: DocFormat, president?: string, theme?: DocThemeKey, frame: FrameStyle = "swoosh"): Promise<Buffer> {
   const style = CATEGORY_STYLES[clean(m.membershipCategory)] ?? { theme: DEFAULT_THEME, tier: 3 as DocTier };
   const t = DOC_THEMES[theme ?? style.theme];
   const a = await loadDocAssets();
   const qr = await qrDataUrl(`${SITE_URL}/verify/${m.id}`, t.deep);
   return renderDoc(
     <Certificate m={m} t={t} tier={style.tier} frame={frame} logo={a.logo} signature={a.signature} stamp={a.stamp} glyphs={a.sealGlyphs} qr={qr} president={clean(president) || undefined} issued={longDate(new Date())} />,
-    scale,
+    format,
     a.fonts,
+    `Membership certificate ${m.membershipNo}`,
   );
 }

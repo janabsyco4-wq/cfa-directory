@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/admin";
 import { effectiveStatus } from "@/lib/verification";
 import { getOrganization } from "@/lib/organization";
 import { renderCertificate } from "@/lib/certificateDesign";
-import { docBaseName, docFormat, docResponse, docScale } from "@/lib/memberDocs";
+import { docBaseName, docFormat, docResponse } from "@/lib/memberDocs";
 
 // GET /api/certificates/:id?format=pdf|png|preview[&view=1] — a member's membership certificate,
 // drawn from their record. Public for valid (Active, unexpired) memberships; admins can get any.
@@ -27,8 +27,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const org = await getOrganization();
-    const png = await renderCertificate({ ...m, id: String(m._id) }, docScale(format), org.presidentTitle);
-    return docResponse(png, format, docBaseName(m.membershipNo, "certificate"), `Membership certificate ${m.membershipNo}`, req.nextUrl.searchParams.get("view") === "1");
+    const file = await renderCertificate({ ...m, id: String(m._id) }, format, org.presidentTitle);
+    return docResponse(file, format, docBaseName(m.membershipNo, "certificate"), req.nextUrl.searchParams.get("view") === "1");
   } catch (err) {
     console.error("[GET /api/certificates/:id]", err);
     return NextResponse.json({ error: "The certificate could not be prepared. Please try again." }, { status: 502 });

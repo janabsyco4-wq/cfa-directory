@@ -6,6 +6,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ReactNode } from "react";
 import { ImageResponse } from "next/og";
+import satori from "satori";
+import { svgToPdf } from "@/lib/vectorPdf";
 import QRCode from "qrcode";
 import { readGlyphs, type GlyphSet } from "@/lib/glyphs";
 import { ClassicFrame, DecoFrame, FloralFrame, SwooshFrame, type FrameStyle } from "@/lib/docFrames";
@@ -521,8 +523,16 @@ export function VerifyQr({ qr, caption, size = 86, color = GREEN }: { qr: string
   );
 }
 
-/** Renders an A4 document element at the requested scale to PNG bytes. */
-export async function renderDoc(element: ReactNode, scale: number, fonts: Fonts): Promise<Buffer> {
+/**
+ * Renders an A4 document: a vector PDF (text and artwork stay sharp at any zoom or print
+ * size), a full-resolution PNG, or a light PNG preview.
+ */
+export async function renderDoc(element: ReactNode, format: DocFormat, fonts: Fonts, title: string): Promise<Buffer> {
+  if (format === "pdf") {
+    const svg = await satori(<div style={{ width: DOC_W, height: DOC_H, display: "flex" }}>{element}</div>, { width: DOC_W, height: DOC_H, fonts });
+    return svgToPdf(svg, DOC_PAGE_PT, title);
+  }
+  const scale = format === "preview" ? DOC_SCALE.preview : DOC_SCALE.print;
   const width = Math.round(DOC_W * scale), height = Math.round(DOC_H * scale);
   const scaled = (
     <div style={{ width, height, display: "flex" }}>

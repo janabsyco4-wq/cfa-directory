@@ -32,6 +32,8 @@ const nextConfig: NextConfig = {
     "/api/notifications/*": ["./assets/**/*"],
     "/api/admin/forms/*": ["./assets/**/*"],
   },
+  // The vector PDF writer loads its own files at runtime, so it runs from node_modules unbundled.
+  serverExternalPackages: ["pdfkit", "svg-to-pdfkit"],
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
