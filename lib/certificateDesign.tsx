@@ -61,11 +61,14 @@ function categoryLabel(category?: string) {
   return { article: /^([aeiou]|honou?r)/i.test(label) ? "an" : "a", label };
 }
 
+/** Deeper gold for small lettering, which reads faintly in the lighter gold. */
+const LABEL_GOLD = "#8a6416";
+
 function Detail({ label, value, ink }: { label: string; value: string; ink: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "0 22px" }}>
-      <div style={{ fontFamily: "Cinzel", fontWeight: 700, fontSize: 10, letterSpacing: 2, color: GOLD }}>{label}</div>
-      <div style={{ marginTop: 4, fontFamily: "Garamond", fontWeight: 500, fontSize: 18, color: ink }}>{value}</div>
+      <div style={{ fontFamily: "Cinzel", fontWeight: 700, fontSize: 10.5, letterSpacing: 2, color: LABEL_GOLD }}>{label}</div>
+      <div style={{ marginTop: 4, fontFamily: "Garamond", fontWeight: 700, fontSize: 18, color: ink }}>{value}</div>
     </div>
   );
 }
@@ -105,15 +108,17 @@ function Certificate({ m, t, tier, frame, logo, signature, stamp, glyphs, qr, pr
           </div>
         )}
 
-        <div style={{ marginTop: 16, fontFamily: "Great Vibes", fontSize: 32, color: "#6b4a12" }}>This is to certify that</div>
+        <div style={{ marginTop: 16, fontFamily: "Great Vibes", fontSize: 32, color: "#4a3109" }}>This is to certify that</div>
         <div style={{ marginTop: 2, fontFamily: "Playfair", fontWeight: 700, fontSize: fitSize(name, 50, 760, 0.6), lineHeight: 1.15, color: t.primary }}>{name}</div>
         <div style={{ marginTop: 6, display: "flex" }}><Divider width={560} /></div>
 
-        <div style={{ marginTop: 12, width: 760, display: "flex" }}>
+        <div style={{ marginTop: 12, width: 860, display: "flex" }}>
           <Paragraph
-            size={19}
+            size={18.5}
             color={t.ink}
             strongColor={t.primary}
+            weight={600}
+            strongWeight={700}
             runs={[
               `is ${article}`, { strong: label }, "of the Chamber of Food & Agriculture Pakistan",
               ...(since ? [", admitted on", { strong: since } as const, ","] : [","]),
@@ -136,7 +141,7 @@ function Certificate({ m, t, tier, frame, logo, signature, stamp, glyphs, qr, pr
       <div style={{ position: "absolute", left: 110, bottom: 74, width: DOC_W - 220, display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 240 }}>
           <SignatureBlock signature={signature} stamp={stamp} name={president} color={t.primary} ink={t.ink} />
-          <div style={{ marginTop: 4, fontFamily: "Garamond", fontStyle: "italic", fontSize: 13, color: "#5c5444" }}>{`Issued on ${issued}`}</div>
+          <div style={{ marginTop: 4, fontFamily: "Garamond", fontStyle: "italic", fontWeight: 600, fontSize: 13.5, color: "#3a3328" }}>{`Issued on ${issued}`}</div>
         </div>
         <div style={{ display: "flex", marginBottom: -8 }}><Seal size={tier === 4 ? 128 : tier === 1 ? 104 : tier === 2 ? 116 : 126} logo={logo} glyphs={glyphs} ribbon={t.primary} ribbons={tier > 1} laurel={tier === 4} /></div>
         <div style={{ display: "flex", width: 240, justifyContent: "center" }}>

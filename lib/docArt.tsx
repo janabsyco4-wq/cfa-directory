@@ -77,9 +77,10 @@ export function loadDocAssets(): Promise<DocAssets> {
     const dir = join(process.cwd(), "assets");
     const font = (file: string) => readFile(join(dir, "fonts", file));
     const dataUri = async (file: string) => `data:image/png;base64,${(await readFile(join(dir, "card", file))).toString("base64")}`;
-    const [cinzel, decorative, garamond, garamondItalic, garamondBoldItalic, vibes, playfair, logo, signature, stamp] = await Promise.all([
+    const [cinzel, decorative, garamond, garamondSemiBold, garamondBold, garamondItalic, garamondSemiBoldItalic, garamondBoldItalic, vibes, playfair, logo, signature, stamp] = await Promise.all([
       font("Cinzel-Bold.ttf"), font("CinzelDecorative-Bold.ttf"),
-      font("EBGaramond-Medium.ttf"), font("EBGaramond-Italic.ttf"), font("EBGaramond-SemiBoldItalic.ttf"),
+      font("EBGaramond-Medium.ttf"), font("EBGaramond-SemiBold.ttf"), font("EBGaramond-Bold.ttf"),
+      font("EBGaramond-Italic.ttf"), font("EBGaramond-SemiBoldItalic.ttf"), font("EBGaramond-BoldItalic.ttf"),
       font("GreatVibes-Regular.ttf"), font("PlayfairDisplay-Bold.ttf"),
       dataUri("logo-clear.png"), dataUri("signature.png"), dataUri("stamp.png"),
     ]);
@@ -87,8 +88,11 @@ export function loadDocAssets(): Promise<DocAssets> {
       { name: "Cinzel", data: cinzel, weight: 700, style: "normal" },
       { name: "Cinzel Decorative", data: decorative, weight: 700, style: "normal" },
       { name: "Garamond", data: garamond, weight: 500, style: "normal" },
+      { name: "Garamond", data: garamondSemiBold, weight: 600, style: "normal" },
+      { name: "Garamond", data: garamondBold, weight: 700, style: "normal" },
       { name: "Garamond", data: garamondItalic, weight: 400, style: "italic" },
-      { name: "Garamond", data: garamondBoldItalic, weight: 600, style: "italic" },
+      { name: "Garamond", data: garamondSemiBoldItalic, weight: 600, style: "italic" },
+      { name: "Garamond", data: garamondBoldItalic, weight: 700, style: "italic" },
       { name: "Great Vibes", data: vibes, weight: 400, style: "normal" },
       { name: "Playfair", data: playfair, weight: 700, style: "normal" },
     ];
@@ -449,8 +453,11 @@ export type Run = string | { strong: string };
  * Flowing paragraph laid out word by word (the renderer only lays out boxes), so filled-in
  * details can be emphasised mid-sentence.
  */
-export function Paragraph({ runs, size, color, strongColor, align = "center", lineHeight = 1.5, italic = true }: {
+export function Paragraph({ runs, size, color, strongColor, align = "center", lineHeight = 1.5, italic = true, weight, strongWeight = 600 }: {
   runs: Run[]; size: number; color: string; strongColor: string; align?: "center" | "flex-start"; lineHeight?: number; italic?: boolean;
+  /** Weight of the plain words; 400 italic or 500 upright unless set. */
+  weight?: 400 | 500 | 600 | 700;
+  strongWeight?: 600 | 700;
 }) {
   const words: { w: string; strong: boolean }[] = [];
   for (const r of runs) {
@@ -470,7 +477,7 @@ export function Paragraph({ runs, size, color, strongColor, align = "center", li
           style={{
             marginRight: size * 0.26,
             fontStyle: italic || strong ? "italic" : "normal",
-            fontWeight: strong ? 600 : italic ? 400 : 500,
+            fontWeight: strong ? strongWeight : weight ?? (italic ? 400 : 500),
             color: strong ? strongColor : color,
           }}
         >
