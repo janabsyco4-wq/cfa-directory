@@ -9,7 +9,7 @@ export default function MemberCard({ member, priority }: { member: PublicMember;
 
   return (
     <article className="group relative w-full flex flex-col bg-card border border-line rounded-xl overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:border-forest/40 hover:shadow-[0_10px_30px_-18px_rgba(16,59,43,0.45)] motion-safe:active:scale-[0.98] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-gold">
-      <div className="relative aspect-[4/5] sm:aspect-[4/3] bg-canvas overflow-hidden">
+      <div className="relative aspect-[4/5] bg-canvas overflow-hidden">
         <MemberPhoto
           src={member.photo}
           frame={member.photoFrame}
