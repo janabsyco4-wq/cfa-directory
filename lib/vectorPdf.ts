@@ -60,6 +60,43 @@ function unwrapGradientPatterns(svg: string) {
 /** Zero-width or zero-height rects draw nothing in SVG, but PDF viewers show them as hairlines. */
 const dropEmptyRects = (svg: string) => svg.replace(/<rect [^>]*?\b(?:width|height)="0"[^>]*\/>/g, "");
 
+type Box = { x: number; y: number; w: number; h: number };
+const RECT = String.raw`<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"`;
+const box = (m: RegExpMatchArray | string[]): Box => ({ x: +m[2], y: +m[3], w: +m[4], h: +m[5] });
+const inside = (a: Box, b: Box) =>
+  a.x >= b.x - 0.01 && a.y >= b.y - 0.01 && a.x + a.w <= b.x + b.w + 0.01 && a.y + a.h <= b.y + b.h + 0.01;
+
+/**
+ * The page renderer gives each image and clipped box a mask that is just a solid white
+ * rectangle over its own box. In a PDF each becomes a soft mask, which viewers composite
+ * separately, so the QR code, signature and stamp appear seconds after the rest of the page.
+ * A rectangle mask is a clip: drop it where the element is already clipped to that box, and
+ * turn the rest into clip paths. Empty groups go too, since each would be a transparency group.
+ */
+function masksToClips(svg: string) {
+  const masks = new Map([...svg.matchAll(new RegExp(String.raw`<mask id="([^"]+)">${RECT} fill="#fff"\/><\/mask>`, "g"))].map((m) => [m[1], box(m)]));
+  const clips = new Map([...svg.matchAll(new RegExp(String.raw`<clipPath id="([^"]+)">${RECT}\/><\/clipPath>`, "g"))].map((m) => [m[1], box(m)]));
+  const asClip = new Set<string>();
+  let out = svg.replace(/<(?:g|image|ellipse|rect|path|svg)\b[^>]*\bmask="url\(#([^)]+)\)"[^>]*>/g, (tag, id: string) => {
+    const mask = masks.get(id);
+    if (!mask) return tag;
+    const clipId = tag.match(/\bclip-path="url\(#([^)]+)\)"/)?.[1];
+    if (clipId === undefined) {
+      asClip.add(id);
+      return tag.replace(` mask="url(#${id})"`, ` clip-path="url(#${id}_clip)"`);
+    }
+    const clip = clips.get(clipId);
+    return clip && inside(clip, mask) ? tag.replace(` mask="url(#${id})"`, "") : tag;
+  });
+  out = out.replace(new RegExp(String.raw`<mask id="([^"]+)">(${RECT}) fill="#fff"\/><\/mask>`, "g"), (all, id: string, rect: string) =>
+    asClip.has(id) ? `${all}<clipPath id="${id}_clip">${rect}/></clipPath>` : all);
+  for (let prev = ""; prev !== out; ) {
+    prev = out;
+    out = out.replace(/<g(?:\s[^>]*)?><\/g>/g, "");
+  }
+  return out;
+}
+
 export function svgToPdf(svg: string, page: { width: number; height: number }, title: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: [page.width, page.height], margin: 0, info: { Title: title, Author: "Chamber of Food & Agriculture Pakistan" } });
@@ -68,7 +105,7 @@ export function svgToPdf(svg: string, page: { width: number; height: number }, t
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
     const warnings = new Set<string>();
-    SVGtoPDF(doc, dropEmptyRects(unwrapGradientPatterns(inlineSvgImages(svg))), 0, 0, {
+    SVGtoPDF(doc, masksToClips(dropEmptyRects(unwrapGradientPatterns(inlineSvgImages(svg)))), 0, 0, {
       width: page.width, height: page.height, preserveAspectRatio: "xMidYMid meet",
       warningCallback: (w) => warnings.add(w.slice(0, 160)),
     });
