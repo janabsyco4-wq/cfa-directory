@@ -22,7 +22,7 @@ export default async function MembersPage() {
   return (
     <>
       <section className="bg-white border-b border-line">
-        <div className="container-site py-7 sm:py-14">
+        <div className="container-site 3xl:max-w-[110rem] py-7 sm:py-14">
           <p className="eyebrow animate-rise">Member Directory</p>
           <div className="mt-2.5 sm:mt-3 flex flex-col lg:flex-row lg:items-end justify-between gap-4 sm:gap-5">
             <div className="animate-rise max-w-2xl" style={{ animationDelay: "60ms" }}>

@@ -216,7 +216,7 @@ export default function MembersClient({
   );
 
   return (
-    <div className="container-site pb-10 md:py-10">
+    <div className="container-site 3xl:max-w-[110rem] pb-10 md:py-10">
       <form
         role="search"
         onSubmit={(e) => e.preventDefault()}
@@ -352,8 +352,8 @@ export default function MembersClient({
 
       <div className="mt-3 sm:mt-4" aria-busy={status === "loading"}>
         {status === "loading" ? (
-          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 lg:gap-6">
-            {Array.from({ length: 6 }).map((_, i) => <MemberCardSkeleton key={i} />)}
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6 3xl:grid-cols-6">
+            {Array.from({ length: 12 }).map((_, i) => <MemberCardSkeleton key={i} />)}
           </div>
         ) : status === "error" ? (
           <div className="bg-white border border-line rounded-xl text-center px-5 py-12 sm:px-6 sm:py-14">
@@ -365,7 +365,7 @@ export default function MembersClient({
             </button>
           </div>
         ) : data && data.members.length > 0 ? (
-          <ul className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 lg:gap-6">
+          <ul className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6 3xl:grid-cols-6">
             {data.members.map((m, i) => (
               <li key={m._id} className="animate-fade flex" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
                 <MemberCard member={m} priority={i < 4} />

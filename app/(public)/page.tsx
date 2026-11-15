@@ -367,9 +367,9 @@ export default async function HomePage() {
                 View all members <ArrowRight size={16} aria-hidden />
               </Link>
             </div>
-            <ul className="mt-8 sm:mt-10 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 lg:gap-6">
+            <ul className="mt-8 sm:mt-10 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
               {featured.map((m, i) => (
-                <li key={m._id} className={`flex ${i === 3 ? "lg:hidden" : ""}`}><MemberCard member={m} /></li>
+                <li key={m._id} className={`flex ${i === 3 ? "md:max-lg:hidden" : ""}`}><MemberCard member={m} /></li>
               ))}
             </ul>
           </div>

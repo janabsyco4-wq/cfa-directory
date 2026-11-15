@@ -15,7 +15,7 @@ export default function MemberCard({ member, priority }: { member: PublicMember;
           frame={member.photoFrame}
           alt={name}
           priority={priority}
-          sizes="(min-width: 1024px) 400px, 50vw"
+          sizes="(min-width: 1800px) 280px, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
         />
         <span className="absolute top-2 left-2 sm:top-3 sm:left-3 rounded bg-white/95 px-1.5 py-0.5 sm:px-2 sm:py-1 text-[10px] sm:text-[11px] font-semibold text-forest shadow-sm">
           {member.membershipCategory}
