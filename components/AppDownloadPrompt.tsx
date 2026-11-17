@@ -2,42 +2,44 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { Download, X } from "lucide-react";
+import { Download, Share, SquarePlus, X } from "lucide-react";
 import { APK_URL } from "@/lib/site";
 
-// Once downloaded, never ask again on this device. "Not now" only hides it for this visit.
-const DOWNLOADED_KEY = "cfa-app-downloaded";
+// Once the app is downloaded (Android) or added to the Home Screen (iPhone), never ask again on
+// this device. "Not now" only hides it for this visit.
+const HAS_APP_KEY = "cfa-app-downloaded";
 const LATER_KEY = "cfa-app-later";
 
-type Mode = "phone" | "computer";
+type Mode = "android" | "computer" | "ios";
 
-// Offers the Android app in front of the page each time someone opens the site.
-// Not shown inside the app itself, on iPhone/iPad (an APK can't install there), or once downloaded.
+// Offers the app in front of the page each time someone opens the site: the APK on Android and
+// computers, "Add to Home Screen" steps on iPhone/iPad. Never shown inside the app itself.
 export default function AppDownloadPrompt() {
   const [mode, setMode] = useState<Mode | null>(null);
   const [downloaded, setDownloaded] = useState(false);
-  const primary = useRef<HTMLAnchorElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ua = navigator.userAgent;
     const apple = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
     const inApp =
       document.documentElement.classList.contains("in-app") ||
-      window.matchMedia("(display-mode: standalone)").matches;
-    let skip = apple || inApp;
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    let skip = inApp;
     try {
-      skip ||= localStorage.getItem(DOWNLOADED_KEY) === "1" || sessionStorage.getItem(LATER_KEY) === "1";
+      skip ||= localStorage.getItem(HAS_APP_KEY) === "1" || sessionStorage.getItem(LATER_KEY) === "1";
     } catch {}
     // Decided after mount: the server can't see the device or what this browser remembers.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reads browser-only state once
-    if (!skip) setMode(/Android/i.test(ua) ? "phone" : "computer");
+    if (!skip) setMode(apple ? "ios" : /Android/i.test(ua) ? "android" : "computer");
   }, []);
 
   const open = mode !== null;
 
   useEffect(() => {
     if (!open) return;
-    primary.current?.focus();
+    dialog.current?.querySelector<HTMLElement>("[data-primary]")?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       try {
@@ -58,12 +60,23 @@ export default function AppDownloadPrompt() {
     setMode(null);
   }
 
-  function onDownload() {
+  function rememberHasApp() {
     try {
-      localStorage.setItem(DOWNLOADED_KEY, "1");
+      localStorage.setItem(HAS_APP_KEY, "1");
     } catch {}
+  }
+
+  function onDownload() {
+    rememberHasApp();
     setDownloaded(true);
   }
+
+  function onAdded() {
+    rememberHasApp();
+    setMode(null);
+  }
+
+  const close = downloaded ? () => setMode(null) : later;
 
   return (
     <div className="app:hidden! fixed inset-0 z-[60] overflow-y-auto overscroll-contain">
@@ -71,12 +84,13 @@ export default function AppDownloadPrompt() {
         type="button"
         tabIndex={-1}
         aria-label="Close"
-        onClick={downloaded ? () => setMode(null) : later}
+        onClick={close}
         className="fixed inset-0 w-full h-full bg-ink/50 animate-fade"
       />
       {/* Scrolls on short screens instead of cutting the card off. */}
       <div className="relative min-h-full flex items-end sm:items-center justify-center p-3 sm:p-6 pointer-events-none">
       <div
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-labelledby="app-prompt-title"
@@ -84,7 +98,7 @@ export default function AppDownloadPrompt() {
       >
         <button
           type="button"
-          onClick={downloaded ? () => setMode(null) : later}
+          onClick={close}
           aria-label="Close"
           className="absolute top-3 right-3 w-9 h-9 inline-flex items-center justify-center rounded-full text-muted hover:bg-canvas"
         >
@@ -98,23 +112,64 @@ export default function AppDownloadPrompt() {
           height={64}
           className="mx-auto w-16 h-16 rounded-2xl border border-line object-contain"
         />
-        <h2 id="app-prompt-title" className="mt-4 text-xl font-extrabold text-ink">
-          {downloaded ? "Almost done" : "Get the CFA Pakistan App"}
-        </h2>
 
-        {downloaded ? (
+        {mode === "ios" ? (
           <>
+            <h2 id="app-prompt-title" className="mt-4 text-xl font-extrabold text-ink">
+              Add CFA Pakistan to your Home Screen
+            </h2>
             <p className="mt-2 text-sm text-muted leading-relaxed">
-              {mode === "phone"
+              It opens like an app, full screen, and works even without internet.
+            </p>
+            <ol className="mt-5 space-y-2.5 rounded-2xl border border-line bg-canvas p-4 text-left text-sm text-ink">
+              <li className="flex items-center gap-3">
+                <Step n={1} />
+                <span>
+                  Tap the <strong>Share</strong> button
+                  <Share size={17} className="inline-block mx-1 -mt-1 text-[#007aff]" aria-label="Share icon" />
+                  in the toolbar
+                </span>
+              </li>
+              <li className="flex items-center gap-3">
+                <Step n={2} />
+                <span>
+                  Scroll down, tap <strong>Add to Home Screen</strong>
+                  <SquarePlus size={17} className="inline-block ml-1 -mt-1" aria-hidden />
+                </span>
+              </li>
+              <li className="flex items-center gap-3">
+                <Step n={3} />
+                <span>
+                  Tap <strong>Add</strong> at the top
+                </span>
+              </li>
+            </ol>
+            <button type="button" data-primary onClick={onAdded} className="btn btn-primary w-full mt-6">
+              I&rsquo;ve added it
+            </button>
+            <button type="button" onClick={later} className="mt-2 w-full min-h-11 text-sm font-semibold text-muted hover:text-ink">
+              Not now
+            </button>
+          </>
+        ) : downloaded ? (
+          <>
+            <h2 id="app-prompt-title" className="mt-4 text-xl font-extrabold text-ink">
+              Almost done
+            </h2>
+            <p className="mt-2 text-sm text-muted leading-relaxed">
+              {mode === "android"
                 ? "Open the downloaded file to install the app. If your phone asks, allow installing from your browser."
                 : "Send the downloaded file to an Android phone and open it there to install the app."}
             </p>
-            <button type="button" onClick={() => setMode(null)} className="btn btn-primary w-full mt-6">
+            <button type="button" data-primary onClick={() => setMode(null)} className="btn btn-primary w-full mt-6">
               Done
             </button>
           </>
         ) : (
           <>
+            <h2 id="app-prompt-title" className="mt-4 text-xl font-extrabold text-ink">
+              Get the CFA Pakistan App
+            </h2>
             <p className="mt-2 text-sm text-muted leading-relaxed">
               Search members and verify memberships faster. The app opens even without internet.
             </p>
@@ -131,7 +186,7 @@ export default function AppDownloadPrompt() {
             )}
 
             <a
-              ref={primary}
+              data-primary
               href={APK_URL}
               download="CFA-Pakistan.apk"
               onClick={onDownload}
@@ -149,5 +204,13 @@ export default function AppDownloadPrompt() {
       </div>
       </div>
     </div>
+  );
+}
+
+function Step({ n }: { n: number }) {
+  return (
+    <span className="w-6 h-6 rounded-full bg-forest text-white text-xs font-bold inline-flex items-center justify-center flex-shrink-0">
+      {n}
+    </span>
   );
 }

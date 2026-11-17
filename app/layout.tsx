@@ -17,7 +17,8 @@ const manrope = Manrope({
   display: "swap",
 });
 
-const IN_APP_SCRIPT = `try{if(document.referrer.indexOf("android-app://org.cfapak.members")===0)sessionStorage.setItem("cfa-app","1");if(sessionStorage.getItem("cfa-app"))document.documentElement.classList.add("in-app")}catch(e){}`;
+// Android app: its referrer. iPhone Home Screen app: navigator.standalone.
+const IN_APP_SCRIPT = `try{if(document.referrer.indexOf("android-app://org.cfapak.members")===0||navigator.standalone===true)sessionStorage.setItem("cfa-app","1");if(sessionStorage.getItem("cfa-app"))document.documentElement.classList.add("in-app")}catch(e){}`;
 
 export const metadata: Metadata = {
   title: {
@@ -43,6 +44,12 @@ export const metadata: Metadata = {
   publisher: "CFA Pakistan",
   metadataBase: new URL(SITE_URL),
   applicationName: "CFA Pakistan Member Portal",
+  // iPhone "Add to Home Screen": short name under the icon, normal status bar.
+  appleWebApp: {
+    capable: true,
+    title: "CFA Pakistan",
+    statusBarStyle: "default",
+  },
   category: "agriculture",
   // Share images come from app/opengraph-image.jpg and app/twitter-image.jpg (WhatsApp/Facebook don't show AVIF).
   openGraph: {
