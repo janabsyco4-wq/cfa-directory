@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Mail, Phone, ExternalLink, MapPin, Globe } from "lucide-react";
-import { navLinks, TAGLINE } from "@/lib/site";
+import { Mail, Phone, ExternalLink, MapPin, Globe, Smartphone } from "lucide-react";
+import { APK_URL, navLinks, TAGLINE } from "@/lib/site";
 import { getPublicContact } from "@/lib/organization";
 
 export default async function Footer() {
@@ -28,6 +28,18 @@ export default async function Footer() {
               Membership verification for the Chamber of Food &amp; Agriculture Pakistan.
             </p>
             <p className="mt-3 text-sm font-medium text-gold">{TAGLINE}</p>
+            {/* Offered to everyone browsing the site; the app itself doesn't need it. */}
+            <a
+              href={APK_URL}
+              download="CFA-Pakistan.apk"
+              className="app:hidden! mt-5 inline-flex items-center gap-3 rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-white hover:bg-white/10 transition-colors"
+            >
+              <Smartphone size={20} className="text-gold" aria-hidden />
+              <span className="leading-tight">
+                <span className="block text-[11px] uppercase tracking-[0.14em] text-white/60">Download the</span>
+                <span className="block text-sm font-semibold">Android App</span>
+              </span>
+            </a>
           </div>
 
           <nav aria-label="Footer" className="lg:col-span-3 lg:col-start-6">

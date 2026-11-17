@@ -5,6 +5,9 @@ export const OFFICIAL_SITE = "https://www.cfapak.org";
 // Canonical address of this portal (sitemap, share links, structured data). Set NEXT_PUBLIC_SITE_URL for a custom domain.
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://members.cfapak.org").replace(/\/+$/, "");
 
+// Signed Android app offered to visitors (android/sign.ps1 copies each new build here).
+export const APK_URL = "/download/CFA-Pakistan.apk";
+
 export const officialPages = {
   about: `${OFFICIAL_SITE}/about-food-and-agriculture`,
   objectives: `${OFFICIAL_SITE}/our-objectives`,

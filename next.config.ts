@@ -48,6 +48,15 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // The Android app offered to visitors (copied here by android/sign.ps1).
+        source: "/download/CFA-Pakistan.apk",
+        headers: [
+          { key: "Content-Type", value: "application/vnd.android.package-archive" },
+          { key: "Content-Disposition", value: 'attachment; filename="CFA-Pakistan.apk"' },
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+        ],
+      },
+      {
         source: "/.well-known/assetlinks.json",
         headers: [{ key: "Content-Type", value: "application/json" }],
       },

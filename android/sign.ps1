@@ -25,7 +25,12 @@ Write-Host "Signing... (enter the key password)" -ForegroundColor Yellow
 & "$bt\apksigner.bat" sign --ks $keystore --ks-key-alias cfa --out $out $unsigned
 if ($LASTEXITCODE -ne 0) { throw "Signing failed" }
 
+# The website offers this file for download; push the change to publish the new version.
+$site = Join-Path $PSScriptRoot "..\public\download\CFA-Pakistan.apk"
+New-Item -ItemType Directory -Force (Split-Path $site) | Out-Null
+Copy-Item $out $site -Force
+
 Write-Host ""
-Write-Host "Signed APK: $out" -ForegroundColor Green
+Write-Host "Signed APK: $out (also copied to public\download for the website)" -ForegroundColor Green
 Write-Host "Send Claude the SHA-256 line below (it is public, not a secret):" -ForegroundColor Green
 & "$bt\apksigner.bat" verify --print-certs $out | Select-String "SHA-256"
