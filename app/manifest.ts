@@ -11,7 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#103b2b",
     icons: [
       { src: "/icon.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/apple-icon.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      // Logo inside Android's safe zone, so round and squircle masks don't cut it.
+      { src: "/maskable-icon.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

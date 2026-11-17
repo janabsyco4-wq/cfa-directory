@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "org.cfapak.members",
+      "sha256_cert_fingerprints": [
+        "AE:0F:0E:9E:80:30:B2:8F:76:78:5F:C7:07:FF:15:FE:82:E7:CD:C2:69:54:27:99:81:BE:71:0B:62:53:DC:04"
+      ]
+    }
+  }
+]

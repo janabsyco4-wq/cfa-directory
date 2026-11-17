@@ -1,0 +1,10 @@
+.gradle/
+build/
+app/build/
+local.properties
+*.apk
+*.aab
+*.idsig
+# Signing keys stay outside the repo (D:\cfa-keys). Never commit them.
+*.keystore
+*.jks
