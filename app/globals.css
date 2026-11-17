@@ -28,6 +28,19 @@
   --font-heading: var(--font-manrope), var(--font-inter), system-ui, sans-serif;
 }
 
+/* Inside the Android app on a phone-sized screen: bottom tab bar, no hamburger.
+   Matches the installed app's standalone window, or the .in-app class set from the app's referrer. */
+@custom-variant app {
+  @media (display-mode: standalone) and (max-width: 63.999rem) {
+    @slot;
+  }
+  @media (max-width: 63.999rem) {
+    &:where(.in-app, .in-app *) {
+      @slot;
+    }
+  }
+}
+
 /* Large desktop monitors (1920px and up at 100% zoom); laptops stay on lg/xl/2xl. */
 @theme {
   --breakpoint-3xl: 112.5rem;

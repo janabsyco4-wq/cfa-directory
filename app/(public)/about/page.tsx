@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Eye, Target } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Eye, Target, Users } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { about, FOUNDED, officialPages, TAGLINE } from "@/lib/site";
 
@@ -66,6 +66,19 @@ export default function AboutPage() {
               <p className="mt-3 text-muted leading-relaxed">{b.text}</p>
             </div>
           ))}
+          <Link
+            href="/leadership"
+            className="md:col-span-2 flex items-center justify-between gap-4 border border-line rounded-lg p-6 sm:px-8 bg-canvas hover:border-forest transition-colors group"
+          >
+            <span className="flex items-center gap-4">
+              <Users size={22} className="text-gold flex-shrink-0" aria-hidden />
+              <span>
+                <span className="block text-xl font-heading font-extrabold text-ink group-hover:text-forest">Our Leadership</span>
+                <span className="block mt-1 text-sm text-muted">Meet the people leading CFA Pakistan</span>
+              </span>
+            </span>
+            <ArrowRight size={18} className="text-forest flex-shrink-0" aria-hidden />
+          </Link>
         </div>
       </section>
 

@@ -60,7 +60,7 @@ export default function Navbar() {
               className="w-9 h-9 sm:w-10 sm:h-10 object-contain flex-shrink-0"
             />
             <span className="leading-tight min-w-0">
-              <span className="block font-heading font-bold text-ink text-[13px] sm:text-sm truncate">
+              <span className="block font-heading font-bold text-ink text-[13px] sm:text-sm truncate app:whitespace-normal! app:text-[12px]!">
                 Chamber of Food &amp; Agriculture
               </span>
               <span className="block text-[10px] font-semibold tracking-[0.18em] uppercase text-gold">
@@ -69,7 +69,7 @@ export default function Navbar() {
             </span>
           </Link>
 
-          <nav aria-label="Main" className="hidden lg:flex items-center gap-1">
+          <nav aria-label="Main" className="hidden lg:flex app:hidden! items-center gap-1">
             {navLinks.map((link) => {
               const active = isActive(pathname, link.href);
               return (
@@ -94,13 +94,14 @@ export default function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link href="/admin/login" className="btn btn-primary hidden sm:inline-flex lg:hidden xl:inline-flex !min-h-0 !py-2.5">
+            {/* In the app the tab bar holds the pages, so the top bar keeps only this button. */}
+            <Link href="/admin/login" className="btn btn-primary hidden sm:inline-flex lg:hidden xl:inline-flex app:inline-flex! app:px-3! app:text-[13px]! whitespace-nowrap flex-shrink-0 !min-h-0 !py-2.5">
               <LogIn size={15} aria-hidden />
               Admin login
             </Link>
             <button
               type="button"
-              className="lg:hidden inline-flex items-center justify-center w-11 h-11 -mr-1.5 rounded-md text-ink hover:bg-canvas"
+              className="lg:hidden app:hidden! inline-flex items-center justify-center w-11 h-11 -mr-1.5 rounded-md text-ink hover:bg-canvas"
               onClick={() => setOpen(!open)}
               aria-expanded={open}
               aria-controls="mobile-menu"

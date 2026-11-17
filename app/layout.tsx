@@ -17,6 +17,8 @@ const manrope = Manrope({
   display: "swap",
 });
 
+const IN_APP_SCRIPT = `try{if(document.referrer.indexOf("android-app://org.cfapak.members")===0)sessionStorage.setItem("cfa-app","1");if(sessionStorage.getItem("cfa-app"))document.documentElement.classList.add("in-app")}catch(e){}`;
+
 export const metadata: Metadata = {
   title: {
     default: "CFA Pakistan — Chamber of Food and Agriculture",
@@ -77,7 +79,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${manrope.variable} h-full`} data-scroll-behavior="smooth">
+    <html
+      lang="en"
+      className={`${inter.variable} ${manrope.variable} h-full`}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Marks pages opened from the Android app (before paint, so the app layout never flickers). */}
+        <script dangerouslySetInnerHTML={{ __html: IN_APP_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col antialiased">
         {children}
         <ServiceWorkerRegister />
