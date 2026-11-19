@@ -3,12 +3,21 @@
 import { useState } from "react";
 import { Award } from "lucide-react";
 import DownloadButton from "@/components/admin/DownloadButton";
+import { DocumentPreview } from "@/components/DocumentViewer";
 
-/** Certificate download on the public verification page; progress shows on the button. */
-export default function CertificateDownload({ memberId }: { memberId: string }) {
+/** Certificate preview (tap to zoom) and download on the public verification page. */
+export default function CertificateDownload({ memberId, name }: { memberId: string; name: string }) {
   const [error, setError] = useState("");
   return (
     <>
+      <div className="mt-3">
+        <DocumentPreview
+          src={`/api/certificates/${memberId}?format=preview`}
+          sharpSrc={`/api/certificates/${memberId}?format=png&view=1`}
+          alt={`Membership certificate of ${name}`}
+          loadingLabel="Loading certificate..."
+        />
+      </div>
       <div className="mt-3 flex">
         <DownloadButton
           href={`/api/certificates/${memberId}?format=pdf`}

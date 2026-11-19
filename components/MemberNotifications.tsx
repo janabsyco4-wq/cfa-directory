@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Download, FileBadge, Loader2 } from "lucide-react";
+import { Download, FileBadge } from "lucide-react";
 import DownloadButton from "@/components/admin/DownloadButton";
+import { DocumentPreview } from "@/components/DocumentViewer";
 import { notificationState, STATE_LABEL, type NotificationRecord } from "@/lib/notifications";
 
 const PILL = {
@@ -20,20 +21,13 @@ function formatDay(iso: string) {
  * covers it once it arrives (the page is opaque), so no load event is needed.
  */
 function Preview({ item }: { item: NotificationRecord }) {
-  const src = `/api/notifications/${item.id}?format=preview`;
   return (
-    <a href={src} target="_blank" rel="noopener" className="relative block aspect-[1123/794] overflow-hidden rounded-lg border border-line bg-canvas" aria-label={`Open notification ${item.number} full size`}>
-      <span className="absolute inset-0 flex items-center justify-center gap-2 text-xs font-semibold text-muted" aria-hidden>
-        <Loader2 size={16} className="animate-spin text-forest" /> Loading notification...
-      </span>
-      {/* eslint-disable-next-line @next/next/no-img-element -- generated on request, not a static asset */}
-      <img
-        src={src}
-        alt={`Notification ${item.number}: ${item.post}${item.unit ? `, ${item.unit}` : ""}`}
-        loading="lazy"
-        className="relative h-full w-full object-contain"
-      />
-    </a>
+    <DocumentPreview
+      src={`/api/notifications/${item.id}?format=preview`}
+      sharpSrc={`/api/notifications/${item.id}?format=png&view=1`}
+      alt={`Notification ${item.number}: ${item.post}${item.unit ? `, ${item.unit}` : ""}`}
+      loadingLabel="Loading notification..."
+    />
   );
 }
 

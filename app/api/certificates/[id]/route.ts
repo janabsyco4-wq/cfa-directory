@@ -23,13 +23,14 @@ async function getFile(req: NextRequest, { params }: { params: Promise<{ id: str
       .lean();
     if (!m) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    if (effectiveStatus(m.status, m.expiryDate) !== "Active" && !(await requireAdmin())) {
+    const active = effectiveStatus(m.status, m.expiryDate) === "Active";
+    if (!active && !(await requireAdmin())) {
       return NextResponse.json({ error: "This membership is not active, so its certificate can't be downloaded." }, { status: 403 });
     }
 
     const org = await getOrganization();
     const file = await renderCertificate({ ...m, id: String(m._id) }, format, org.presidentTitle);
-    return docResponse(file, format, docBaseName(m.membershipNo, "certificate"), req.nextUrl.searchParams.get("view") === "1");
+    return docResponse(file, format, docBaseName(m.membershipNo, "certificate"), req.nextUrl.searchParams.get("view") === "1", active);
   } catch (err) {
     console.error("[GET /api/certificates/:id]", err);
     return NextResponse.json({ error: "The certificate could not be prepared. Please try again." }, { status: 502 });

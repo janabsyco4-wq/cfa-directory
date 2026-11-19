@@ -90,7 +90,7 @@ export default function VerificationResult({ member, orgName }: { member: Verifi
             <div className="mt-4 pt-4 border-t border-line">
               <p className="text-sm font-bold text-ink">Membership certificate</p>
               <p className="mt-0.5 text-xs text-muted">A4 certificate with the Chamber&apos;s seal, ready to print and frame.</p>
-              <CertificateDownload memberId={member.id} />
+              <CertificateDownload memberId={member.id} name={member.name} />
             </div>
           </div>
         )}
