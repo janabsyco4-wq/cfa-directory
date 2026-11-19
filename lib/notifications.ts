@@ -31,8 +31,6 @@ export interface NotificationInput {
 
 export type NotificationState = "upcoming" | "in-force" | "ended";
 
-const DAY = 24 * 60 * 60 * 1000;
-
 /** The membership's last day as yyyy-mm-dd (the day the admin form shows), or null if it has none. */
 export function expiryDay(expiry?: string | Date | null) {
   if (!expiry) return null;
@@ -46,17 +44,24 @@ export function yearEnd(date: string | Date | number = Date.now()) {
 }
 
 /**
- * Last day a notification may run to: the membership's expiry, or, for a member without
+ * The day a notification runs to: always the membership's expiry, or, for a member without
  * one, the end of the year it is issued in.
  */
 export function notificationLimit(expiry?: string | Date | null, issuedAt: string | Date | number = Date.now()) {
   return expiryDay(expiry) ?? yearEnd(issuedAt);
 }
 
-/** In force from the start date through the whole of the end date. */
+/** Calendar day in Pakistan as yyyy-mm-dd. */
+const pkDay = (t: number) => new Date(t).toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
+
+/**
+ * In force for whole calendar days in Pakistan, from the start day through the end day.
+ * (Dates are stored at noon UTC, so their UTC day is the calendar day.)
+ */
 export function notificationState(n: { from: string | Date; to: string | Date }, now = Date.now()): NotificationState {
-  if (new Date(n.from).getTime() > now) return "upcoming";
-  return new Date(n.to).getTime() + DAY <= now ? "ended" : "in-force";
+  const today = pkDay(now);
+  if (new Date(n.from).toISOString().slice(0, 10) > today) return "upcoming";
+  return new Date(n.to).toISOString().slice(0, 10) < today ? "ended" : "in-force";
 }
 
 export const STATE_LABEL: Record<NotificationState, string> = {
@@ -85,14 +90,14 @@ interface StoredNotification {
 }
 
 /**
- * A notification as shown and printed. Its end date never passes the membership's expiry
- * (or, without one, the end of the year it was issued in), so the document, the verification
- * page and the admin list all carry the same date, and it lapses with the membership.
+ * A notification as shown and printed. It runs until the membership expires (or, without an
+ * expiry date, to the end of the year it was issued in), whatever end date was stored, so the
+ * document, the verification page and the admin list all carry the membership's own date and
+ * follow it when the membership is renewed.
  */
 export function toNotificationRecord(n: StoredNotification, expiry?: string | Date | null): NotificationRecord {
   const from = new Date(n.from).getTime();
-  const limit = new Date(`${notificationLimit(expiry, n.issuedAt)}T12:00:00Z`).getTime();
-  const to = Math.max(from, Math.min(new Date(n.to).getTime(), limit));
+  const to = Math.max(from, new Date(`${notificationLimit(expiry, n.issuedAt)}T12:00:00Z`).getTime());
   return {
     id: String(n._id),
     number: n.number,

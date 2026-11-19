@@ -33,14 +33,6 @@ function today() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
 }
 
-/** One year on, less a day: 2026-08-01 → 2027-07-31. */
-function yearLater(iso: string) {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCFullYear(d.getUTCFullYear() + 1);
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
-
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Karachi" });
 
 /** "President, District Jhelum" → post "President", unit "District Jhelum". */
@@ -50,10 +42,8 @@ function suggested(m: DocumentMember): NotificationInput {
   const post = comma > 0 ? designation.slice(0, comma).trim() : /^(nil|n\/a|-)$/i.test(designation) ? "" : designation;
   const unit = comma > 0 ? designation.slice(comma + 1).trim() : m.district ? `District ${m.district}` : "";
   const from = today();
-  // A year by default, but never past the membership's expiry (or this year's end without one).
-  const year = yearLater(from);
-  const limit = notificationLimit(m.expiryDate);
-  const to = limit >= from && limit < year ? limit : year;
+  // Always runs until the membership expires (or this year's end without an expiry date).
+  const to = notificationLimit(m.expiryDate);
   return { honorific: "Mr.", relation: "S/O", relativeName: m.fatherName ?? "", post, unit, from, to };
 }
 
@@ -73,24 +63,21 @@ export default function MemberDocuments({ memberId, member }: { memberId: string
   const [certError, setCertError] = useState("");
   const name = `${member.firstName} ${member.lastName}`.trim();
   const expiry = member.expiryDate || "";
+  // The notification always ends here; it isn't typed in.
   const limit = notificationLimit(expiry);
-  const limitNote = expiry
-    ? `The membership expires on ${day(limit)}, so the notification can only run until then.`
-    : `This member has no expiry date, so the notification can only run until ${day(limit)} (end of this year).`;
   const set = <K extends keyof NotificationInput>(key: K, value: NotificationInput[K]) => setForm((f) => ({ ...f, [key]: value }));
 
   async function issue(e: FormEvent) {
     e.preventDefault();
     setError(""); setSuccess("");
     if (!form.post.trim()) return setError("Enter the post this member is notified as.");
-    if (!form.from || !form.to) return setError("Enter both dates of the period.");
-    if (form.to < form.from) return setError("The period must end after it starts.");
+    if (!form.from) return setError("Enter the date the notification starts.");
     if (expiry && expiry < today()) return setError(`This membership expired on ${day(expiry)}. Renew it before issuing a notification.`);
-    if (form.to > limit) return setError(limitNote);
+    if (form.from > limit) return setError(`The notification must start on or before ${day(limit)}, when ${expiry ? "the membership expires" : "this year ends"}.`);
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/members/${memberId}/notifications`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, to: limit }),
       });
       if (!res.ok) return setError(await errorOf(res));
       const json = await res.json();
@@ -139,7 +126,7 @@ export default function MemberDocuments({ memberId, member }: { memberId: string
         {certError && <div className="mt-3"><Feedback error={certError} /></div>}
       </Panel>
 
-      <Panel title="Notifications" description="Appoint this member to a post for a period. Each notification shows on their public verification page until you withdraw it, and stays in force only until the membership expires (or, with no expiry date, until the end of the year).">
+      <Panel title="Notifications" description="Appoint this member to a post. Each notification runs until the membership expires (with no expiry date, to the end of the year) and shows on their public verification page until you withdraw it.">
         <div className="space-y-4">
           <Feedback error={error} success={success} />
 
@@ -216,8 +203,8 @@ export default function MemberDocuments({ memberId, member }: { memberId: string
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="From" required><DateField value={form.from} onChange={(v) => set("from", v)} required max={limit} /></Field>
-              <Field label="To" required hint={`At most ${day(limit)} (${expiry ? "membership expiry" : "no expiry date, so end of this year"}).`}>
-                <DateField value={form.to} onChange={(v) => set("to", v)} required min={form.from} max={limit} />
+              <Field label="To" hint={expiry ? "The membership's expiry date." : "No expiry date, so the end of this year."}>
+                <input value={day(limit)} disabled className={inputCls} />
               </Field>
             </div>
             <button type="submit" disabled={saving} className={primaryBtn}>
