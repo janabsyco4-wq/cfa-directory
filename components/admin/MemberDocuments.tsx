@@ -6,7 +6,7 @@ import DownloadButton from "@/components/admin/DownloadButton";
 import DateField from "@/components/admin/DateField";
 import { Feedback, Field, inputCls, Panel, primaryBtn, secondaryBtn } from "@/components/admin/FormField";
 import {
-  HONORIFICS, notificationList, notificationState, RELATIONS, STATE_LABEL,
+  HONORIFICS, notificationLimit, notificationList, notificationState, RELATIONS, STATE_LABEL,
   type NotificationInput, type NotificationRecord, type Relation,
 } from "@/lib/notifications";
 
@@ -17,6 +17,8 @@ export interface DocumentMember {
   fatherName?: string;
   designation?: string;
   district?: string;
+  /** yyyy-mm-dd; a notification can't run past it. */
+  expiryDate?: string;
   notifications?: Parameters<typeof notificationList>[0];
 }
 
@@ -48,7 +50,11 @@ function suggested(m: DocumentMember): NotificationInput {
   const post = comma > 0 ? designation.slice(0, comma).trim() : /^(nil|n\/a|-)$/i.test(designation) ? "" : designation;
   const unit = comma > 0 ? designation.slice(comma + 1).trim() : m.district ? `District ${m.district}` : "";
   const from = today();
-  return { honorific: "Mr.", relation: "S/O", relativeName: m.fatherName ?? "", post, unit, from, to: yearLater(from) };
+  // A year by default, but never past the membership's expiry (or this year's end without one).
+  const year = yearLater(from);
+  const limit = notificationLimit(m.expiryDate);
+  const to = limit >= from && limit < year ? limit : year;
+  return { honorific: "Mr.", relation: "S/O", relativeName: m.fatherName ?? "", post, unit, from, to };
 }
 
 async function errorOf(res: Response) {
@@ -58,7 +64,7 @@ async function errorOf(res: Response) {
 
 /** Certificate download and the notifications issued to this member, below the edit form. */
 export default function MemberDocuments({ memberId, member }: { memberId: string; member: DocumentMember }) {
-  const [items, setItems] = useState<NotificationRecord[]>(() => notificationList(member.notifications));
+  const [items, setItems] = useState<NotificationRecord[]>(() => notificationList(member.notifications, member.expiryDate));
   const [form, setForm] = useState<NotificationInput>(() => suggested(member));
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState("");
@@ -66,6 +72,11 @@ export default function MemberDocuments({ memberId, member }: { memberId: string
   const [success, setSuccess] = useState("");
   const [certError, setCertError] = useState("");
   const name = `${member.firstName} ${member.lastName}`.trim();
+  const expiry = member.expiryDate || "";
+  const limit = notificationLimit(expiry);
+  const limitNote = expiry
+    ? `The membership expires on ${day(limit)}, so the notification can only run until then.`
+    : `This member has no expiry date, so the notification can only run until ${day(limit)} (end of this year).`;
   const set = <K extends keyof NotificationInput>(key: K, value: NotificationInput[K]) => setForm((f) => ({ ...f, [key]: value }));
 
   async function issue(e: FormEvent) {
@@ -74,6 +85,8 @@ export default function MemberDocuments({ memberId, member }: { memberId: string
     if (!form.post.trim()) return setError("Enter the post this member is notified as.");
     if (!form.from || !form.to) return setError("Enter both dates of the period.");
     if (form.to < form.from) return setError("The period must end after it starts.");
+    if (expiry && expiry < today()) return setError(`This membership expired on ${day(expiry)}. Renew it before issuing a notification.`);
+    if (form.to > limit) return setError(limitNote);
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/members/${memberId}/notifications`, {
@@ -126,7 +139,7 @@ export default function MemberDocuments({ memberId, member }: { memberId: string
         {certError && <div className="mt-3"><Feedback error={certError} /></div>}
       </Panel>
 
-      <Panel title="Notifications" description="Appoint this member to a post for a period. Each notification shows on their public verification page until you withdraw it.">
+      <Panel title="Notifications" description="Appoint this member to a post for a period. Each notification shows on their public verification page until you withdraw it, and stays in force only until the membership expires (or, with no expiry date, until the end of the year).">
         <div className="space-y-4">
           <Feedback error={error} success={success} />
 
@@ -202,8 +215,10 @@ export default function MemberDocuments({ memberId, member }: { memberId: string
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="From" required><DateField value={form.from} onChange={(v) => set("from", v)} required /></Field>
-              <Field label="To" required><DateField value={form.to} onChange={(v) => set("to", v)} required min={form.from} /></Field>
+              <Field label="From" required><DateField value={form.from} onChange={(v) => set("from", v)} required max={limit} /></Field>
+              <Field label="To" required hint={`At most ${day(limit)} (${expiry ? "membership expiry" : "no expiry date, so end of this year"}).`}>
+                <DateField value={form.to} onChange={(v) => set("to", v)} required min={form.from} max={limit} />
+              </Field>
             </div>
             <button type="submit" disabled={saving} className={primaryBtn}>
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}

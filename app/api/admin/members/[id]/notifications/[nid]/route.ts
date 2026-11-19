@@ -15,11 +15,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     await connectDB();
     const member = await Member.findByIdAndUpdate(id, { $pull: { notifications: { _id: nid } } }, { new: true })
-      .select("notifications")
+      .select("notifications expiryDate")
       .lean();
     if (!member) return NextResponse.json({ error: "Not found" }, { status: 404 });
     revalidateMemberPages(id);
-    return NextResponse.json({ notifications: notificationList(member.notifications) });
+    return NextResponse.json({ notifications: notificationList(member.notifications, member.expiryDate) });
   } catch (err) {
     console.error("[DELETE notification]", err);
     return NextResponse.json({ error: "The notification could not be removed. Please try again." }, { status: 500 });

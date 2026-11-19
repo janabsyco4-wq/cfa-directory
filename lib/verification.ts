@@ -35,7 +35,7 @@ function toRecord(m: any): VerificationRecord {
     joinedDate: m.joinedDate ? new Date(m.joinedDate).toISOString() : undefined,
     expiryDate: expiry?.toISOString(),
     status,
-    notifications: notificationList(m.notifications),
+    notifications: notificationList(m.notifications, m.expiryDate),
   };
 }
 

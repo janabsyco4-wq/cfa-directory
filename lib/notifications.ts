@@ -33,6 +33,26 @@ export type NotificationState = "upcoming" | "in-force" | "ended";
 
 const DAY = 24 * 60 * 60 * 1000;
 
+/** The membership's last day as yyyy-mm-dd (the day the admin form shows), or null if it has none. */
+export function expiryDay(expiry?: string | Date | null) {
+  if (!expiry) return null;
+  const d = new Date(expiry);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+/** 31 December of the year the date falls in, in Pakistan, as yyyy-mm-dd. */
+export function yearEnd(date: string | Date | number = Date.now()) {
+  return `${new Date(date).toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" }).slice(0, 4)}-12-31`;
+}
+
+/**
+ * Last day a notification may run to: the membership's expiry, or, for a member without
+ * one, the end of the year it is issued in.
+ */
+export function notificationLimit(expiry?: string | Date | null, issuedAt: string | Date | number = Date.now()) {
+  return expiryDay(expiry) ?? yearEnd(issuedAt);
+}
+
 /** In force from the start date through the whole of the end date. */
 export function notificationState(n: { from: string | Date; to: string | Date }, now = Date.now()): NotificationState {
   if (new Date(n.from).getTime() > now) return "upcoming";
@@ -64,7 +84,15 @@ interface StoredNotification {
   issuedAt: Date | string;
 }
 
-export function toNotificationRecord(n: StoredNotification): NotificationRecord {
+/**
+ * A notification as shown and printed. Its end date never passes the membership's expiry
+ * (or, without one, the end of the year it was issued in), so the document, the verification
+ * page and the admin list all carry the same date, and it lapses with the membership.
+ */
+export function toNotificationRecord(n: StoredNotification, expiry?: string | Date | null): NotificationRecord {
+  const from = new Date(n.from).getTime();
+  const limit = new Date(`${notificationLimit(expiry, n.issuedAt)}T12:00:00Z`).getTime();
+  const to = Math.max(from, Math.min(new Date(n.to).getTime(), limit));
   return {
     id: String(n._id),
     number: n.number,
@@ -74,14 +102,14 @@ export function toNotificationRecord(n: StoredNotification): NotificationRecord 
     post: n.post,
     unit: n.unit ?? "",
     from: new Date(n.from).toISOString(),
-    to: new Date(n.to).toISOString(),
+    to: new Date(to).toISOString(),
     issuedAt: new Date(n.issuedAt).toISOString(),
   };
 }
 
-/** Newest first. */
-export function notificationList(list?: StoredNotification[] | null) {
-  return (list ?? []).map(toNotificationRecord).sort((a, b) => b.issuedAt.localeCompare(a.issuedAt));
+/** Newest first; `expiry` is the member's expiry date (see toNotificationRecord). */
+export function notificationList(list: StoredNotification[] | null | undefined, expiry: string | Date | null | undefined) {
+  return (list ?? []).map((n) => toNotificationRecord(n, expiry)).sort((a, b) => b.issuedAt.localeCompare(a.issuedAt));
 }
 
 /** "CFAP/NTF/2026/0007" */

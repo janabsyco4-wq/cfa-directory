@@ -18,12 +18,13 @@ async function getFile(req: NextRequest, { params }: { params: Promise<{ id: str
   try {
     await connectDB();
     const m = await Member.findOne({ "notifications._id": id })
-      .select({ membershipNo: 1, firstName: 1, lastName: 1, notifications: { $elemMatch: { _id: id } } })
+      .select({ membershipNo: 1, firstName: 1, lastName: 1, expiryDate: 1, notifications: { $elemMatch: { _id: id } } })
       .lean();
     const n = m?.notifications?.[0];
     if (!m || !n) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const record = toNotificationRecord(n);
+    // The printed end date stops at the membership's expiry (or the year's end without one).
+    const record = toNotificationRecord(n, m.expiryDate);
     const org = await getOrganization();
     const file = await renderNotification({ ...m, id: String(m._id) }, record, format, org.presidentTitle);
     const base = docBaseName(m.membershipNo, `notification-${record.number.split("/").slice(-2).join("-")}`);

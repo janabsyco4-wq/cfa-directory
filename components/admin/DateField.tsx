@@ -55,12 +55,13 @@ function formatTyping(raw: string) {
 }
 
 export default function DateField({
-  value, onChange, required, min,
+  value, onChange, required, min, max,
 }: {
   value: string;
   onChange: (iso: string) => void;
   required?: boolean;
   min?: string;
+  max?: string;
 }) {
   const [text, setText] = useState(() => toDisplay(value));
   const hiddenRef = useRef<HTMLInputElement>(null);
@@ -127,6 +128,7 @@ export default function DateField({
         type="date"
         value={value}
         min={min}
+        max={max}
         tabIndex={-1}
         aria-hidden="true"
         onChange={(e) => {
