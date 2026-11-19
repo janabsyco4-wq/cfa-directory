@@ -10,6 +10,27 @@ const REASONS: Record<string, string> = {
   expired: "Your session has ended. Please sign in again.",
 };
 
+type PasswordCredentialCtor = new (data: { id: string; password: string; name?: string }) => Credential;
+
+/**
+ * Signing in happens without a page submit, so the browser may not notice it. This hands the
+ * login to its password manager (Chrome, the Android app, Google Password Manager), which
+ * asks "Save password?" and fills it in next time. Browsers without the API (Safari) rely on
+ * the autocomplete fields instead. Never holds up the sign-in for more than a moment.
+ */
+async function offerToSave(id: string, password: string) {
+  const Ctor = (window as unknown as { PasswordCredential?: PasswordCredentialCtor }).PasswordCredential;
+  if (!Ctor || !navigator.credentials?.store) return;
+  try {
+    await Promise.race([
+      navigator.credentials.store(new Ctor({ id, password })),
+      new Promise((resolve) => setTimeout(resolve, 1500)),
+    ]);
+  } catch {
+    // Saving is a convenience; sign-in already worked.
+  }
+}
+
 export default function LoginClient({ reason }: { reason?: string }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -37,7 +58,8 @@ export default function LoginClient({ reason }: { reason?: string }) {
         return;
       }
 
-      // Success - redirect to admin dashboard
+      // Success: offer to save the login on this device, then open the dashboard.
+      await offerToSave(username, password);
       window.location.href = "/admin";
     } catch {
       setError("Something went wrong. Please try again.");
@@ -87,6 +109,10 @@ export default function LoginClient({ reason }: { reason?: string }) {
                 <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                 <input
                   type="text"
+                  id="username"
+                  name="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="admin@example.com"
@@ -106,6 +132,8 @@ export default function LoginClient({ reason }: { reason?: string }) {
                 <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                 <input
                   type={showPass ? "text" : "password"}
+                  id="password"
+                  name="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
